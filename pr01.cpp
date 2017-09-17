@@ -23,8 +23,8 @@
 #include <fstream>
 #include <cassert>
 #include <sstream>
-#include <string>
-
+#include <cstring>
+#include <malloc.h>
 using namespace std;
 
 // =============================================================================
@@ -33,6 +33,14 @@ using namespace std;
 int width, height;
 unsigned char *pixmap;
 
+//Resizing the read buffer for large image files
+unsigned char* resizeArray(unsigned char* oldArray, long int oldSize, long int& newSize) 
+{
+    newSize = oldSize * 2;
+    unsigned char* newArray = new unsigned char[newSize];
+    std::memcpy( newArray, oldArray, oldSize * sizeof(unsigned char) );
+    return newArray;
+}
 
 // =============================================================================
 // setPixels()
@@ -70,6 +78,7 @@ static void windowResize(int w, int h)
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity() ;
 }
+
 static void windowDisplay(void)
 {
   glClear(GL_COLOR_BUFFER_BIT);
@@ -78,25 +87,93 @@ static void windowDisplay(void)
   glDrawPixels(width, height, GL_RGB, GL_UNSIGNED_BYTE, pixmap);
   glFlush();
 }
+
 static void processMouse(int button, int state, int x, int y)
 {
   if(state == GLUT_UP)
   exit(0);               // Exit on mouse click.
 }
+
 static void init(void)
 {
   glClearColor(1,1,1,1); // Set background color.
 }
 
+unsigned char* fillPPMBuffer(std::fstream& ppmFile, long int& numOfCharacters)
+{
+  char c;
+  long int bufferSize;
+  unsigned char *fileBuffer = (unsigned char*)malloc(10000*sizeof(unsigned char));
+  bufferSize=10000;
+  while(ppmFile.get(c))
+  {
+    if(numOfCharacters == bufferSize - 1)
+    {
+      unsigned char* tempBuffer = resizeArray(fileBuffer, bufferSize, bufferSize);
+      delete[] fileBuffer;
+      fileBuffer=tempBuffer;
+    }
+    fileBuffer[numOfCharacters++]=c;
+  }
+  return fileBuffer;
+}
+
+void parseCommentLine(int& index, unsigned char* fileBuffer, long int numOfCharacters)
+{
+  while(index<numOfCharacters && fileBUffer[index]!='\n')
+  index++;
+}
+
+      
 bool readPPMFile(char* filePath)
 {
   std::fstream ppmFile;
+  long int numOfCharacters=0;
+  long int numOfParsedLines=0;
+  int magicNumberParsed=0, widthParsed=0, heightParsed=0, maxColorValueParsed=0;
   ppmFile.open (filePath, std::fstream::in);
-  char c;
-  while(ppmFile.get(c))
-  std::cout<<c;
+  unsigned char *fileBuffer = fillPPMBuffer(ppmFile, numOfCharacters);
+  for(long int index=0;index<numOfCharacters;index++)
+  {
+    if(fileBuffer[index]=='#')
+    {
+      parseCommentLine(index, fileBuffer, numOfCharacters);
+      continue;
+    }
+    if(!magicNumberParsed)
+    {
+      while(index<numOfCharacters)
+      {
+        if(fileBuffer[index]=='#')
+        {
+          parseCommentLine(index, fileBuffer, numOfCharacters);
+          break;
+        }
+        if(fileBuffer[index]=='P' || fileBuffer[index]=='p')
+        {
+          index++;
+          if(fileBuffer[index]=='1' || fileBuffer[index]=='2'|| fileBuffer[index]=='3' || fileBuffer[index]=='4' || fileBuffer[index]=='5' || fileBuffer[index]=='6')
+          {
+            magicNumberParsed=1;
+            break;
+          }
+          else 
+            return false;
+        }
+        if(isspace(fileBUffer[index]) && fileBuffer[index]!='\n')
+          index++;
+        else
+          return false;
+      }
+      continue;
+    }
+    if(!(magicNumberParsed
+
+   
+  }
   ppmFile.close();
 } 
+
 // =============================================================================
 // main() Program Entry
 // =============================================================================
