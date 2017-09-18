@@ -29,7 +29,8 @@
 #define WIDTHVALUEID 1
 #define HEIGHTVALUEID 2
 #define MAXCOLORVALUEID 3
-
+#define COLORFOREGROUND 0
+#define COLORBACKGROUND 1
 using namespace std;
 
 // =============================================================================
@@ -334,24 +335,27 @@ bool readPPMFile(char* filePath)
   delete[] fileBuffer;
   return true;
 }
- 
-void fillCharacters(unsigned char* fileBuffer, int& index, char* data, int size)
+
+/* *********************************** Code for saving a ppm file*****************************/
+
+void fillCharacters(unsigned char* fileBuffer, long int& index, char* data, int size)
 {
   for(int i=0;i<size;i++)
     fileBuffer[index++]=data[i];
 }
-void writeToFile(unsigned char* fileBuffer, int numberOfCharacters, fstream& ppmFile)
-{
-  for(int i=0; i< numberOfCharacters; i++)
+
+void writeToFile(unsigned char* fileBuffer, long int numberOfCharacters, fstream& ppmFile)
+{  
+  for(long int i=0; i< numberOfCharacters; i++)
   {
-    ppmFile.put(fileBuffer[i]);
+    ppmFile << fileBuffer[i];
   }
 }
 
-void writeHeader(unsigned char* fileBuffer, int& index)
+void writeHeader(unsigned char* fileBuffer, long int& index)
 {
-  width=540;
-  height=720;
+  width=500;
+  height=250;
   maxColorValue=255;
   char widthString[5], heightString[5], maxColorString[5];
   sprintf(widthString, "%d", width);
@@ -367,14 +371,70 @@ void writeHeader(unsigned char* fileBuffer, int& index)
   fillCharacters(fileBuffer, index, maxColorString, 3);
   fileBuffer[index++]='\n';  
 }
+void fillColor(unsigned char* fileBuffer, long int& index, int& charCount, int colorId)
+{
+  char colorVal[20];
+  switch(colorId)
+  {
+    case COLORFOREGROUND:
+      strcpy(colorVal, "0 0 0 ");
+      break;
+    case COLORBACKGROUND:
+      strcpy(colorVal, "255 255 0 ");
+      break;
+  }
+  for(int i=0;i<strlen(colorVal);i++)
+  {
+    fileBuffer[index++]=colorVal[i];    
+    charCount++;
+  }
+}
+
+unsigned char* writePixelBufferToFileBuffer(unsigned char* pixelBuffer, unsigned char* fileBuffer, long int& index, long int origSize)
+{
+  int charCount=0;
+  for(int i=0;i<height;i++)
+  {
+    for(int j=0;j<width;j++)
+    {
+      if(index >= origSize-50)
+      {
+        unsigned char* tempBuffer = resizeArray(fileBuffer, origSize, origSize);
+        delete[] fileBuffer;
+        fileBuffer=tempBuffer;
+      }
+      if(pixelBuffer[i*width+j])
+        fillColor(fileBuffer, index, charCount, COLORFOREGROUND);
+      else
+        fillColor(fileBuffer, index, charCount, COLORBACKGROUND);
+      if (charCount >= 60)
+      {
+        fileBuffer[index++]='\n';
+        charCount=0;
+      }
+    }
+  }
+  fileBuffer[index++]='\n';
+  return  fileBuffer;
+}
+
+void fillPixelBuffer(unsigned char* pixelBuffer)
+{
+  for(int i=0;i<height;i++)
+    for(int j=0; j<width;j++)
+      pixelBuffer[i*width+j]=0;
+}
 
 void generatePPMFile()
 {
   std::fstream ppmFile;
   ppmFile.open("pr01.ppm",std::fstream::out);
-  int index=0;
+  long int index=0;
   unsigned char* fileBuffer = new unsigned char[10000];
   writeHeader(fileBuffer, index);
+  unsigned char *pixelBuffer = new unsigned char[width*height];
+  fillPixelBuffer(pixelBuffer);
+  fileBuffer=writePixelBufferToFileBuffer(pixelBuffer, fileBuffer, index, 10000);
   writeToFile(fileBuffer, index, ppmFile);
   ppmFile.close();
 }
