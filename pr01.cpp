@@ -333,7 +333,51 @@ bool readPPMFile(char* filePath)
   }
   delete[] fileBuffer;
   return true;
-} 
+}
+ 
+void fillCharacters(unsigned char* fileBuffer, int& index, char* data, int size)
+{
+  for(int i=0;i<size;i++)
+    fileBuffer[index++]=data[i];
+}
+void writeToFile(unsigned char* fileBuffer, int numberOfCharacters, fstream& ppmFile)
+{
+  for(int i=0; i< numberOfCharacters; i++)
+  {
+    ppmFile.put(fileBuffer[i]);
+  }
+}
+
+void writeHeader(unsigned char* fileBuffer, int& index)
+{
+  width=540;
+  height=720;
+  maxColorValue=255;
+  char widthString[5], heightString[5], maxColorString[5];
+  sprintf(widthString, "%d", width);
+  sprintf(heightString, "%d", height);
+  sprintf(maxColorString, "%d", maxColorValue);
+  char magicNumberString[3] = "P3";
+  fillCharacters(fileBuffer, index, magicNumberString, 2);
+  fileBuffer[index++]='\n';
+  fillCharacters(fileBuffer, index, widthString, 3);
+  fileBuffer[index++]=' ';
+  fillCharacters(fileBuffer, index, heightString, 3);
+  fileBuffer[index++]='\n';
+  fillCharacters(fileBuffer, index, maxColorString, 3);
+  fileBuffer[index++]='\n';  
+}
+
+void generatePPMFile()
+{
+  std::fstream ppmFile;
+  ppmFile.open("pr01.ppm",std::fstream::out);
+  int index=0;
+  unsigned char* fileBuffer = new unsigned char[10000];
+  writeHeader(fileBuffer, index);
+  writeToFile(fileBuffer, index, ppmFile);
+  ppmFile.close();
+}
 
 // =============================================================================
 // main() Program Entry
@@ -347,12 +391,27 @@ int main(int argc, char *argv[])
   // glut functions.  
   glutInit(&argc, argv);
   char ppmFilePath[100];
-  std::cout<<"Give the path of the ppm file\n";
-  std::cin>>ppmFilePath;
-  if(!readPPMFile(ppmFilePath))
+  int option;
+  cout<<"Enter\n1. Read a ppm file\n2. Save a ppm file\n";
+  cin>>option;
+  switch(option)
   {
-    cout<<"Error\n";
-    exit(-1);
+    case 1:
+      std::cout<<"Give the path of the ppm file\n";
+      std::cin>>ppmFilePath;
+      if(!readPPMFile(ppmFilePath))
+      {
+        cout<<"Error\n";
+        exit(-1);
+      }
+      break;
+    case 2:
+      generatePPMFile();
+      cout<<"Your file 'pr01.ppm' is ready\n";
+      char c;
+      cout<<"Enter any character to proceed.. ";
+      c= getchar();
+      exit(0);
   }
   glutInitWindowPosition(100, 100); // Where the window will display on-screen.
   glutInitWindowSize(width, height);
