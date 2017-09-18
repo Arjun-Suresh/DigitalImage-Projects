@@ -53,16 +53,12 @@ unsigned char* resizeArray(unsigned char* oldArray, long int oldSize, long int& 
 // This function stores the RGB values of each pixel to "pixmap."
 // Then, "glutDisplayFunc" below will use pixmap to display the pixel colors.
 // =============================================================================
-void setPixels()
+void setPixels(int x, int y, int* color)
 {
-   for(int y = 0; y < height ; y++) {
-     for(int x = 0; x < width; x++) {
-       int i = (y * width + x) * 3; 
-       pixmap[i++] = 255;
-       pixmap[i++] = 0xFF; //Do you know what "0xFF" represents? Google it!
-       pixmap[i] = 0x00; //Learn to use the "0x" notation to your advantage.
-     }
-   }
+  int i = (y * width + x) * 3; 
+  pixmap[i++] = color[2];
+  pixmap[i++] = color[1]; //Do you know what "0xFF" represents? Google it!
+  pixmap[i] = color[0]; //Learn to use the "0x" notation to your advantage.
 }
 
 
@@ -225,6 +221,31 @@ bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharac
   return true;
 }
 
+bool fillPixels(long int& index, unsigned char* fileBuffer, long int numOfCharacters)
+{
+  index++;
+  unsigned char color[3];
+  long int flag=0, rowVal=0, colVal=0;
+  while(index<numOfCharacters)
+  {
+    if(isdigit(fileBuffer[index]))
+    {
+      char valueString[20];
+      int k=0;
+      valueString[k++]=fileBuffer[index++];
+      while(isdigit(fileBuffer[index]) && index<numOfCharacters)
+        valueString[k++]=fileBuffer[index++];
+      value = atoi(valueString);
+      if(value>maxColorValue)
+        return false;
+      color[flag%3]=value;
+      flag=(flag+1)%3;
+      if(flag%3==0)
+      {
+        while(index<numOfCharacters && !(isspace(fileBuffer[index]))
+          index++;
+        //call setpixel, set rowval, reset columnval
+    
 bool readPPMFile(char* filePath)
 {
   std::fstream ppmFile;
@@ -250,25 +271,25 @@ bool readPPMFile(char* filePath)
     {
       if(!parseValue(index, fileBuffer, numOfCharacters, widthParsed, WIDTHVALUEID))
         return false;
-      if(widthParsed)
-      cout<<"Width: "<<width<<endl;
       continue;
     }
     if(magicNumberParsed && widthParsed && !heightParsed)
     {
       if(!parseValue(index, fileBuffer, numOfCharacters, heightParsed, HEIGHTVALUEID))
         return false;
-      if(heightParsed)
-      cout<<"Height: "<<height<<endl;
       continue;
     }
     if(magicNumberParsed && widthParsed && heightParsed && !maxColorValueParsed)
     {
       if(!parseValue(index, fileBuffer, numOfCharacters, maxColorValueParsed, MAXCOLORVALUEID))
         return false;
-      if(maxColorValueParsed)
-      cout<<"Max Color Value: "<<maxColorValue<<endl;
       continue;
+    }
+    if(magicNumberParsed && widthParsed && heightParsed && maxColorValueParsed)
+    {
+      if(!(fillPixels(index, fileBuffer, numOfCharacters))
+        return false;
+      break;
     }
   }
   ppmFile.close();
@@ -288,9 +309,6 @@ int main(int argc, char *argv[])
   std::cout<<"Give the path of the ppm file\n";
   std::cin>>ppmFilePath;
   bool val=readPPMFile(ppmFilePath);
-  setPixels();
-
-
   // OpenGL Commands:
   // Once "glutMainLoop" is executed, the program loops indefinitely to all
   // glut functions.  
