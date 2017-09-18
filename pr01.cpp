@@ -25,12 +25,17 @@
 #include <sstream>
 #include <cstring>
 #include <malloc.h>
+
+#define WIDTHVALUEID 1
+#define HEIGHTVALUEID 2
+#define MAXCOLORVALUEID 3
+
 using namespace std;
 
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
 // =============================================================================
-int width, height;
+int width, height, maxColorValue;
 unsigned char *pixmap;
 
 //Resizing the read buffer for large image files
@@ -118,13 +123,108 @@ unsigned char* fillPPMBuffer(std::fstream& ppmFile, long int& numOfCharacters)
   return fileBuffer;
 }
 
-void parseCommentLine(int& index, unsigned char* fileBuffer, long int numOfCharacters)
+void parseCommentLine(long int& index, unsigned char* fileBuffer, long int numOfCharacters)
 {
-  while(index<numOfCharacters && fileBUffer[index]!='\n')
+  while(index<numOfCharacters && fileBuffer[index]!='\n')
   index++;
 }
 
-      
+bool parseMagicNumber(long int& index, unsigned char* fileBuffer, long int numOfCharacters, int& magicNumberParsed)
+{
+  while(index<numOfCharacters)
+  {
+    if(fileBuffer[index]=='#')
+    {
+      parseCommentLine(index, fileBuffer, numOfCharacters);
+      break;
+    }
+    if(fileBuffer[index]=='P' || fileBuffer[index]=='p')
+    {
+      index++;
+      if(fileBuffer[index]=='1' || fileBuffer[index]=='2'|| fileBuffer[index]=='3' || fileBuffer[index]=='4' || fileBuffer[index]=='5' || fileBuffer[index]=='6')
+      {
+        magicNumberParsed=1;
+        break;
+      }
+      else 
+        return false;
+    }
+    if(isspace(fileBuffer[index]) && fileBuffer[index]!='\n')
+      index++;
+    else
+      return false;
+  }
+  if(magicNumberParsed)
+  {
+    index++;
+    if(index<numOfCharacters && !(isspace(fileBuffer[index]) || fileBuffer[index]=='#'))
+      return false;
+    else
+    {
+      if(fileBuffer[index]=='#')
+      {
+        parseCommentLine(index, fileBuffer, numOfCharacters);
+      }
+    }
+        
+  }
+  return true;
+}
+
+bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharacters, int& parseValue, int valueId)
+{
+  int value;
+  while(index<numOfCharacters)
+  {
+    if(fileBuffer[index]=='#')
+    {
+      parseCommentLine(index, fileBuffer, numOfCharacters);
+      break;
+    }
+    if(isdigit(fileBuffer[index]))
+    {
+      char valueString[20];
+      int k=0;
+      valueString[k++]=fileBuffer[index++];
+
+      while(isdigit(fileBuffer[index]) && index<numOfCharacters)
+        valueString[k++]=fileBuffer[index++];
+      value = atoi(valueString);
+      parseValue=1;
+      break;
+    }
+    if(isspace(fileBuffer[index]))
+      index++;
+    else
+      return false;
+  }
+  if(parseValue)
+  {
+    if(index<numOfCharacters && !((isspace(fileBuffer[index]) && valueId != MAXCOLORVALUEID) || (valueId == MAXCOLORVALUEID && fileBuffer[index] == '\n') || fileBuffer[index]=='#'))
+      return false;
+    else
+    {
+      if(fileBuffer[index]=='#')
+      {
+        parseCommentLine(index, fileBuffer, numOfCharacters);
+      }
+    }        
+  }
+  switch(valueId)
+  {
+    case WIDTHVALUEID:
+      width=value;
+      break;
+    case HEIGHTVALUEID:
+      height=value;
+      break;
+    case MAXCOLORVALUEID:
+      maxColorValue=value;
+      break;
+  }
+  return true;
+}
+
 bool readPPMFile(char* filePath)
 {
   std::fstream ppmFile;
@@ -142,34 +242,34 @@ bool readPPMFile(char* filePath)
     }
     if(!magicNumberParsed)
     {
-      while(index<numOfCharacters)
-      {
-        if(fileBuffer[index]=='#')
-        {
-          parseCommentLine(index, fileBuffer, numOfCharacters);
-          break;
-        }
-        if(fileBuffer[index]=='P' || fileBuffer[index]=='p')
-        {
-          index++;
-          if(fileBuffer[index]=='1' || fileBuffer[index]=='2'|| fileBuffer[index]=='3' || fileBuffer[index]=='4' || fileBuffer[index]=='5' || fileBuffer[index]=='6')
-          {
-            magicNumberParsed=1;
-            break;
-          }
-          else 
-            return false;
-        }
-        if(isspace(fileBUffer[index]) && fileBuffer[index]!='\n')
-          index++;
-        else
-          return false;
-      }
+      if(!parseMagicNumber(index, fileBuffer, numOfCharacters, magicNumberParsed))
+        return false;
       continue;
     }
-    if(!(magicNumberParsed
-
-   
+    if(magicNumberParsed && !widthParsed)
+    {
+      if(!parseValue(index, fileBuffer, numOfCharacters, widthParsed, WIDTHVALUEID))
+        return false;
+      if(widthParsed)
+      cout<<"Width: "<<width<<endl;
+      continue;
+    }
+    if(magicNumberParsed && widthParsed && !heightParsed)
+    {
+      if(!parseValue(index, fileBuffer, numOfCharacters, heightParsed, HEIGHTVALUEID))
+        return false;
+      if(heightParsed)
+      cout<<"Height: "<<height<<endl;
+      continue;
+    }
+    if(magicNumberParsed && widthParsed && heightParsed && !maxColorValueParsed)
+    {
+      if(!parseValue(index, fileBuffer, numOfCharacters, maxColorValueParsed, MAXCOLORVALUEID))
+        return false;
+      if(maxColorValueParsed)
+      cout<<"Max Color Value: "<<maxColorValue<<endl;
+      continue;
+    }
   }
   ppmFile.close();
 } 
