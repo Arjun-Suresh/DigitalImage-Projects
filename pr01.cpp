@@ -56,9 +56,9 @@ unsigned char* resizeArray(unsigned char* oldArray, long int oldSize, long int& 
 void setPixels(int x, int y, unsigned char* color)
 {
   int i = (y * width + x) * 3; 
-  pixmap[i++] = color[2];
+  pixmap[i++] = color[0];
   pixmap[i++] = color[1]; //Do you know what "0xFF" represents? Google it!
-  pixmap[i] = color[0]; //Learn to use the "0x" notation to your advantage.
+  pixmap[i] = color[2]; //Learn to use the "0x" notation to your advantage.
 }
 
 
@@ -75,7 +75,7 @@ static void windowResize(int w, int h)
   glViewport(0, 0, w, h);
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  glOrtho(0,(w/2),0,(h/2),0,1); 
+  glOrtho(0,width,0,height,0,1);
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity() ;
 }
@@ -247,7 +247,7 @@ bool fillPixels(long int& index, unsigned char* fileBuffer, long int numOfCharac
       {
         while(index<numOfCharacters && isspace(fileBuffer[index]))
           index++;
-        setPixels(colVal, rowVal, color);
+        setPixels(colVal, height-rowVal-1, color);
         colVal++;
         if(colVal==width)
         {
@@ -472,26 +472,33 @@ int main(int argc, char *argv[])
   glutInit(&argc, argv);
   char ppmFilePath[100];
   int option;
-  cout<<"Enter\n1. Read a ppm file\n2. Save a ppm file\n";
-  cin>>option;
-  switch(option)
+  while(1)
   {
-    case 1:
-      std::cout<<"Give the path of the ppm file\n";
-      std::cin>>ppmFilePath;
-      if(!readPPMFile(ppmFilePath))
-      {
-        cout<<"Error\n";
-        exit(-1);
-      }
+    cout<<"Enter\n1. Read a ppm file\n2. Save a ppm file\n";
+    cin>>option;
+    int flag=0;
+    switch(option)
+    {
+      case 1:
+        std::cout<<"Give the path of the ppm file\n";
+        std::cin>>ppmFilePath;
+        if(!readPPMFile(ppmFilePath))
+        {
+          cout<<"Error\n";
+          exit(-1);
+        }
+        flag=1;
+        break;
+      case 2:
+        generatePPMFile();
+        cout<<"Your file 'pr01.ppm' is ready in the current directory..\n";
+        exit(0);
+      default:
+        cout<<"Please choose the right option\n";
+        break;
+    }
+    if(flag)
       break;
-    case 2:
-      generatePPMFile();
-      cout<<"Your file 'pr01.ppm' is ready\n";
-      char c;
-      cout<<"Enter any character to proceed.. ";
-      c= getchar();
-      exit(0);
   }
   glutInitWindowPosition(100, 100); // Where the window will display on-screen.
   glutInitWindowSize(width, height);
