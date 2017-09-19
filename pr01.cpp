@@ -338,9 +338,9 @@ bool readPPMFile(char* filePath)
 
 /* *********************************** Code for saving a ppm file*****************************/
 
-void fillCharacters(unsigned char* fileBuffer, long int& index, char* data, int size)
+void fillCharacters(unsigned char* fileBuffer, long int& index, char* data)
 {
-  for(int i=0;i<size;i++)
+  for(int i=0;i<strlen(data);i++)
     fileBuffer[index++]=data[i];
 }
 
@@ -354,21 +354,21 @@ void writeToFile(unsigned char* fileBuffer, long int numberOfCharacters, fstream
 
 void writeHeader(unsigned char* fileBuffer, long int& index)
 {
-  width=500;
-  height=250;
+  width=1000;
+  height=500;
   maxColorValue=255;
   char widthString[5], heightString[5], maxColorString[5];
   sprintf(widthString, "%d", width);
   sprintf(heightString, "%d", height);
   sprintf(maxColorString, "%d", maxColorValue);
   char magicNumberString[3] = "P3";
-  fillCharacters(fileBuffer, index, magicNumberString, 2);
+  fillCharacters(fileBuffer, index, magicNumberString);
   fileBuffer[index++]='\n';
-  fillCharacters(fileBuffer, index, widthString, 3);
+  fillCharacters(fileBuffer, index, widthString);
   fileBuffer[index++]=' ';
-  fillCharacters(fileBuffer, index, heightString, 3);
+  fillCharacters(fileBuffer, index, heightString);
   fileBuffer[index++]='\n';
-  fillCharacters(fileBuffer, index, maxColorString, 3);
+  fillCharacters(fileBuffer, index, maxColorString);
   fileBuffer[index++]='\n';  
 }
 void fillColor(unsigned char* fileBuffer, long int& index, int& charCount, int colorId)
@@ -432,7 +432,7 @@ void fillPixelBuffer(unsigned char* pixelBuffer)
   for(int i=0;i<height;i++)
     for(int j=0; j<width;j++)
       pixelBuffer[i*width+j]=0;
-  int xcenter=250,ycenter=125,radius=50;
+  int xcenter=500,ycenter=250,radius=125;
   for(int i=0;i<height;i++)
   {
     for(int j=0; j<width;j++)
