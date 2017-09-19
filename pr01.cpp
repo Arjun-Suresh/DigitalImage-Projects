@@ -19,7 +19,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <GL/glut.h>
-
+#include <math.h>
 #include <fstream>
 #include <cassert>
 #include <sstream>
@@ -418,11 +418,31 @@ unsigned char* writePixelBufferToFileBuffer(unsigned char* pixelBuffer, unsigned
   return  fileBuffer;
 }
 
+bool checkIfPointInCircle(int x, int y, int xcenter, int ycenter, int radius)
+{
+  double dist = pow((pow((xcenter-x),2)+pow((ycenter-y),2)), 0.5);
+  int distanceRoundOff = (int) dist;
+  if(distanceRoundOff<=radius)
+    return true;
+  return false;
+}
+  
 void fillPixelBuffer(unsigned char* pixelBuffer)
 {
   for(int i=0;i<height;i++)
     for(int j=0; j<width;j++)
       pixelBuffer[i*width+j]=0;
+  int xcenter=250,ycenter=125,radius=50;
+  for(int i=0;i<height;i++)
+  {
+    for(int j=0; j<width;j++)
+    {
+      if(checkIfPointInCircle(j,i,xcenter,ycenter,radius))
+        pixelBuffer[i*width+j]=1;
+      else
+        pixelBuffer[i*width+j]=0;
+    }
+  }
 }
 
 void generatePPMFile()
