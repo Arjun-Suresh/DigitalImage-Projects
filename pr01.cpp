@@ -1,18 +1,9 @@
 // =============================================================================
 // VIZA654/CSCE646 at Texas A&M University
 // Homework 0
-// Created by Anton Agana based from Ariel Chisholm's template
-// 05.23.2011
-//
-// This file is supplied with an associated makefile. Put both files in the same
-// directory, navigate to that directory from the Linux shell, and type 'make'.
-// This will create a program called 'pr01' that you can run by entering
-// 'homework0' as a command in the shell.
-//
-// If you are new to programming in Linux, there is an
-// excellent introduction to makefile structure and the gcc compiler here:
-//
-// http://www.cs.txstate.edu/labs/tutorials/tut_docs/Linux_Prog_Environment.pdf
+// Created by Arjun Suresh based on the template put up on the project
+// description page. This program primarily can read either P3 or P6 ppm file
+// and write a p3 ppm file.
 //
 // =============================================================================
 
@@ -36,7 +27,7 @@ using namespace std;
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
 // =============================================================================
-int width, height, maxColorValue;
+int width, height, maxColorValue, magicNo;
 unsigned char* pixmap;
 //Resizing the read buffer for large image files
 unsigned char* resizeArray(unsigned char* oldArray, long int oldSize, long int& newSize) 
@@ -100,25 +91,7 @@ static void init(void)
   glClearColor(1,1,1,1); // Set background color.
 }
 
-unsigned char* fillPPMBuffer(std::fstream& ppmFile, long int& numOfCharacters)
-{
-  char c;
-  long int bufferSize;
-  unsigned char *fileBuffer = (unsigned char*)malloc(10000*sizeof(unsigned char));
-  bufferSize=10000;
-  while(ppmFile.get(c))
-  {
-    if(numOfCharacters == bufferSize - 1)
-    {
-      unsigned char* tempBuffer = resizeArray(fileBuffer, bufferSize, bufferSize);
-      delete[] fileBuffer;
-      fileBuffer=tempBuffer;
-    }
-    fileBuffer[numOfCharacters++]=c;
-  }  
-  return fileBuffer;
-}
-
+//**********************Functions to parse the header fields of the ppm file********************
 void parseCommentLine(long int& index, unsigned char* fileBuffer, long int numOfCharacters)
 {
   while(index<numOfCharacters && fileBuffer[index]!='\n')
@@ -140,6 +113,7 @@ bool parseMagicNumber(long int& index, unsigned char* fileBuffer, long int numOf
       if(fileBuffer[index]=='1' || fileBuffer[index]=='2'|| fileBuffer[index]=='3' || fileBuffer[index]=='4' || fileBuffer[index]=='5' || fileBuffer[index]=='6')
       {
         magicNumberParsed=1;
+	magicNo=fileBuffer[index]-48;
         break;
       }
       else 
@@ -222,6 +196,7 @@ bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharac
   return true;
 }
 
+//**************Function to fill image pixmap data from a P3 PPM file*****************
 bool fillPixels(long int& index, unsigned char* fileBuffer, long int numOfCharacters)
 {
   unsigned char color[3];
@@ -241,7 +216,7 @@ bool fillPixels(long int& index, unsigned char* fileBuffer, long int numOfCharac
       value = atoi(valueString);
       if(value>maxColorValue)
         return false;
-      color[flag%3]=(unsigned char)value;
+      color[flag%3]=(char)value;
       flag=(flag+1)%3;
       if(flag%3==0)
       {
@@ -267,7 +242,24 @@ bool fillPixels(long int& index, unsigned char* fileBuffer, long int numOfCharac
    }
    return true;
 }
-    
+
+//**************Function to fill image pixmap data from a P6 PPM file*****************
+bool fillPixelsBin(long int& index, unsigned char* fileBuffer, long int numOfCharacters)
+{
+  long int rowVal=0,colVal=0;
+  while(index<numOfCharacters)
+  {
+    long int val=(((height-rowVal-1)*width)+colVal)*3;
+    for(int i=0;i<3;i++)
+    	pixmap[val++]=fileBuffer[index++];
+    colVal=(colVal+1)%width;
+    if(!colVal)
+      rowVal++;
+  }
+  return true;
+}
+
+//***************Main read PPM file function********************************************
 bool readPPMFile(char* filePath)
 {
   std::fstream ppmFile;
@@ -279,8 +271,14 @@ bool readPPMFile(char* filePath)
     cout<<"Filename not found\n";
     return false;
   }
-  ppmFile.open (filePath, std::fstream::in);
-  unsigned char *fileBuffer = fillPPMBuffer(ppmFile, numOfCharacters);
+  ppmFile.open (filePath, std::ios::in|std::ios::binary);
+  ppmFile.seekg(0,std::ios::end);
+  ppmFile.seekg(0,std::ios::end);
+  numOfCharacters = ppmFile.tellg();
+  ppmFile.seekg(0,std::ios::beg);
+  unsigned char* fileBuffer = new unsigned char[numOfCharacters+1];
+  ppmFile.read((char *)fileBuffer, numOfCharacters);
+  fileBuffer[numOfCharacters]='\0';
   ppmFile.close();
   for(long int index=0;index<numOfCharacters;index++)
   {
@@ -325,11 +323,21 @@ bool readPPMFile(char* filePath)
     if(magicNumberParsed && widthParsed && heightParsed && maxColorValueParsed)
     {
       pixmap = new unsigned char[width*height*3];
-      if(!(fillPixels(index, fileBuffer, numOfCharacters)))
+      if(magicNo==3)
       {
-        return false;
+        
+        if(!(fillPixels(index, fileBuffer, numOfCharacters)))
+        {
+          return false;
+        }
+        break;
       }
-      break;
+      else
+      {
+        if(!(fillPixelsBin(index, fileBuffer, numOfCharacters)))
+          return false;
+        return true;
+      }
     }
   }
   delete[] fileBuffer;
