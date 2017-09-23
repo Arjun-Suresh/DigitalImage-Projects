@@ -247,7 +247,7 @@ bool fillPixels(long int& index, unsigned char* fileBuffer, long int numOfCharac
 bool fillPixelsBin(long int& index, unsigned char* fileBuffer, long int numOfCharacters)
 {
   long int rowVal=0,colVal=0;
-  while(index<numOfCharacters)
+  while(rowVal<height)
   {
     long int val=(((height-rowVal-1)*width)+colVal)*3;
     for(int i=0;i<3;i++)
@@ -256,6 +256,7 @@ bool fillPixelsBin(long int& index, unsigned char* fileBuffer, long int numOfCha
     if(!colVal)
       rowVal++;
   }
+  cout<<"Done\n";
   return true;
 }
 
@@ -360,7 +361,7 @@ void writeToFile(unsigned char* fileBuffer, long int numberOfCharacters, fstream
   }
 }
 
-void writeHeader(unsigned char* fileBuffer, long int& index)
+void writeHeader(unsigned char* fileBuffer, long int& index, int format)
 {
   width=1000;
   height=500;
@@ -369,7 +370,16 @@ void writeHeader(unsigned char* fileBuffer, long int& index)
   sprintf(widthString, "%d", width);
   sprintf(heightString, "%d", height);
   sprintf(maxColorString, "%d", maxColorValue);
-  char magicNumberString[3] = "P3";
+  char magicNumberString[3];
+  switch (format)
+  {
+    case 1:
+      strcpy(magicNumberString, "P3");
+      break;
+    case 2:
+      strcpy(magicNumberString, "P6");
+      break;
+  }
   fillCharacters(fileBuffer, index, magicNumberString);
   fileBuffer[index++]='\n';
   fillCharacters(fileBuffer, index, widthString);
@@ -379,26 +389,44 @@ void writeHeader(unsigned char* fileBuffer, long int& index)
   fillCharacters(fileBuffer, index, maxColorString);
   fileBuffer[index++]='\n';  
 }
-void fillColor(unsigned char* fileBuffer, long int& index, int& charCount, int colorId)
+void fillColor(unsigned char* fileBuffer, long int& index, int& charCount, int colorId, int format)
 {
-  char colorVal[20];
-  switch(colorId)
+  if(format == 1)
   {
-    case COLORFOREGROUND:
-      strcpy(colorVal, "0 0 0 ");
-      break;
-    case COLORBACKGROUND:
-      strcpy(colorVal, "255 255 0 ");
-      break;
+    char colorVal[20];
+    switch(colorId)
+    {
+      case COLORFOREGROUND:
+        strcpy(colorVal, "0 0 0 ");
+        break;
+      case COLORBACKGROUND:
+        strcpy(colorVal, "255 255 0 ");
+        break;
+    }
+    for(int i=0;i<strlen(colorVal);i++)
+    {
+      fileBuffer[index++]=colorVal[i];    
+      charCount++;
+    }
   }
-  for(int i=0;i<strlen(colorVal);i++)
+  else
   {
-    fileBuffer[index++]=colorVal[i];    
-    charCount++;
+    switch(colorId)
+    {
+      case COLORFOREGROUND:
+        for(int i=0;i<3;i++)
+          fileBuffer[index++]=0;
+        break;
+      case COLORBACKGROUND:
+          fileBuffer[index++]=255;
+          fileBuffer[index++]=255;
+          fileBuffer[index++]=0;
+        break;
+    }
   }
 }
 
-unsigned char* writePixelBufferToFileBuffer(unsigned char* pixelBuffer, unsigned char* fileBuffer, long int& index, long int origSize)
+unsigned char* writePixelBufferToFileBuffer(unsigned char* pixelBuffer, unsigned char* fileBuffer, long int& index, long int origSize, int format)
 {
   int charCount=0;
   for(int i=0;i<height;i++)
@@ -412,9 +440,9 @@ unsigned char* writePixelBufferToFileBuffer(unsigned char* pixelBuffer, unsigned
         fileBuffer=tempBuffer;
       }
       if(pixelBuffer[i*width+j])
-        fillColor(fileBuffer, index, charCount, COLORFOREGROUND);
+        fillColor(fileBuffer, index, charCount, COLORFOREGROUND, format);
       else
-        fillColor(fileBuffer, index, charCount, COLORBACKGROUND);
+        fillColor(fileBuffer, index, charCount, COLORBACKGROUND, format);
       if (charCount >= 60)
       {
         fileBuffer[index++]='\n';
@@ -455,14 +483,22 @@ void fillPixelBuffer(unsigned char* pixelBuffer)
 
 void generatePPMFile()
 {
+  std::cout<<"Enter 1 for P3 and 2 for P6 format file\n";
+  int format;
+  cin>>format;
+  while(!(format==1 || format==2))
+  {
+    std::cout<<"Wrong option\nEnter 1 for P3 and 2 for P6 format file\n";
+    cin>>format;
+  }
   std::fstream ppmFile;
   ppmFile.open("pr01.ppm",std::fstream::out);
   long int index=0;
   unsigned char* fileBuffer = new unsigned char[10000];
-  writeHeader(fileBuffer, index);
+  writeHeader(fileBuffer, index, format);
   unsigned char *pixelBuffer = new unsigned char[width*height];
   fillPixelBuffer(pixelBuffer);
-  fileBuffer=writePixelBufferToFileBuffer(pixelBuffer, fileBuffer, index, 10000);
+  fileBuffer=writePixelBufferToFileBuffer(pixelBuffer, fileBuffer, index, 10000, format);
   writeToFile(fileBuffer, index, ppmFile);
   ppmFile.close();
 }
