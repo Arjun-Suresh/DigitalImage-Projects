@@ -389,6 +389,11 @@ void writeHeader(unsigned char* fileBuffer, long int& index, int format)
   fillCharacters(fileBuffer, index, maxColorString);
   fileBuffer[index++]='\n';  
 }
+
+//********************This function fills in black for foreground and yellow for background
+//This function is called for background fill if pixmap has 0 for that pixel and,
+//foreground fill if pixmap has 1 for that pixel. Consequently, the drawing has a black circle
+//in a yellow background*********************************************************************
 void fillColor(unsigned char* fileBuffer, long int& index, int& charCount, int colorId, int format)
 {
   if(format == 1)
@@ -462,7 +467,9 @@ bool checkIfPointInCircle(int x, int y, int xcenter, int ycenter, int radius)
     return true;
   return false;
 }
-  
+
+//***************Create a pixmap array with 1 for pixel if it is in a circle
+//and 0 if it is outside****************************************************
 void fillPixelBuffer(unsigned char* pixelBuffer)
 {
   for(int i=0;i<height;i++)
