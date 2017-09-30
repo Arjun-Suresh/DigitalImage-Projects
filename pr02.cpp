@@ -237,23 +237,37 @@ int checkIfPointInsideFunction(int x, int y)
 }
 
 
+int checkIfPointInCircle(int x, int y, double xcenter, double ycenter, int radius)
+{
+  double dist = pow((pow((x-xcenter),2)+pow((y-ycenter),2)),0.5);
+  if ((int)dist<=radius)
+    return 1;
+  return 0;
+}
+
 int checkIfPointInsideBlob(int x, int y)
 {
-  if(x>=100 && x<=400)
+  if(x>=50 && x<=450)
   {
-    double xVal = ((x-100)*180)/300;
+    double xVal = ((x-50)*180)/400;
     double xRad = (xVal*3.14159)/180;
     double ySineVal1=(100*sin(xRad))+200;
-    double ySineVal2=(25*sin(xRad*3))+200;
+    double ySineVal2=(25*sin(xRad*9))+200;
     if(ySineVal1 < ySineVal2)
     {
       if(y>=(int)ySineVal1 && y<= ySineVal2)
-        return 1;
+      {
+        if(checkIfPointInCircle(x, y, 250, 200, 150))
+          return 1;
+      }
     }
     else
     {
       if(y<=(int)ySineVal1 && y>=ySineVal2)
-        return 1;
+      {
+        if(checkIfPointInCircle(x, y, 250, 200, 150))
+          return 1;
+      }
     }
   }
   return 0;
