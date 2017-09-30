@@ -141,10 +141,10 @@ float slope(int x0, int x1, int y0, int y1)
 
 
 
-void checkIfPointInside(int* x, int* y, int n, int xtest, int ytest, int& pos, int& neg)
+int checkIfPointInside(int* x, int* y, int n, int xtest, int ytest, int option)
 {
-  neg=0;
-  pos=0;
+  int neg=0;
+  int pos=0;
   for(int i=0;i<n;i++)
   {
     int x0=x[i];
@@ -153,17 +153,37 @@ void checkIfPointInside(int* x, int* y, int n, int xtest, int ytest, int& pos, i
     int y1=y[(i+1)%n];
     if (x0==x1)
     {
-      if(y1>y0 && xtest>x0)
-        pos++;
+      if(y1>y0)
+      {
+        if(xtest>=x0)
+          neg++;
+        else 
+          pos++;
+      }
       else
-        neg++;
+      { 
+        if(xtest<=x0)
+          neg++;
+        else 
+          pos++;
+      }
     }
     else if (y0==y1)
     {
-      if(x1>x0 && ytest>y0)
-        pos++;
+      if(x1>x0)
+      {
+        if(ytest>=y0)
+          neg++;
+        else 
+          pos++;
+      }
       else
-        neg++;
+      { 
+        if(ytest<=y0)
+          neg++;
+        else 
+          pos++;
+      }
     }
     else
     {
@@ -183,6 +203,18 @@ void checkIfPointInside(int* x, int* y, int n, int xtest, int ytest, int& pos, i
       }     
     }
   }
+  switch (option)
+  {
+    case 1:
+      if(neg == n)
+        return 1;
+      break;
+    case 2:
+      if(neg >= n-1)
+        return 1;
+      break;
+  }
+  return 0;
 }
 
 
@@ -195,22 +227,9 @@ void fillShape(int* x, int* y, int n, int option)
     for(int j=0;j<width;j++)
     {
       int pos=0, neg=0;
-      checkIfPointInside(xNew, yNew, n, j, i, pos, neg);
-      if(i==150 && j==10)
-      cout<<pos<<" "<<neg<<endl;
-      switch (option)
-      {
-        case 1:
-          if(neg == n)
-            setForeGroundPixel(i,j);
-          break;
-        case 2:
-          if(neg >= n-1)
-          {
-            setForeGroundPixel(i,j);
-          }
-          break;
-      }
+      int val=checkIfPointInside(xNew, yNew, n, j, i, option);
+      if(val)
+        setForeGroundPixel(i,j);
     }
   }
 }
