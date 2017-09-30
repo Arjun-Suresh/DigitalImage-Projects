@@ -19,7 +19,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <GL/glut.h>
-
+#include <math.h>
 #include <fstream>
 #include <cassert>
 #include <sstream>
@@ -141,7 +141,7 @@ float slope(int x0, int x1, int y0, int y1)
 
 
 
-int checkIfPointInside(int* x, int* y, int n, int xtest, int ytest, int option)
+int checkIfPointInsideLineSet(int* x, int* y, int n, int xtest, int ytest, int option)
 {
   int neg=0;
   int pos=0;
@@ -218,18 +218,73 @@ int checkIfPointInside(int* x, int* y, int n, int xtest, int ytest, int option)
 }
 
 
+int checkIfPointInsideFunction(int x, int y)
+{
+  double xVal=(x*360)/width;
+  double xRad = (xVal*3.14159)/180;
+  double yVal=(100*sin(xRad))+200;
+  if(yVal < 200)
+  {
+    if(y>=(int)yVal && y<= 200)
+      return 1;
+  }
+  else
+  {
+    if(y<=(int)yVal && y>=200)
+      return 1;
+  }
+  return 0;
+}
+
+
+int checkIfPointInsideBlob(int x, int y)
+{
+  if(x>=100 && x<=400)
+  {
+    double xVal = ((x-100)*180)/300;
+    double xRad = (xVal*3.14159)/180;
+    double ySineVal1=(100*sin(xRad))+200;
+    double ySineVal2=(25*sin(xRad*3))+200;
+    if(ySineVal1 < ySineVal2)
+    {
+      if(y>=(int)ySineVal1 && y<= ySineVal2)
+        return 1;
+    }
+    else
+    {
+      if(y<=(int)ySineVal1 && y>=ySineVal2)
+        return 1;
+    }
+  }
+  return 0;
+}
+
+
 void fillShape(int* x, int* y, int n, int option)
 {
   int xNew[100], yNew[100];
-  formseq(x,y,xNew, yNew, n);
+  if(option<3)
+    formseq(x,y,xNew, yNew, n);
   for(int i=0;i<height;i++)
   {
     for(int j=0;j<width;j++)
     {
-      int pos=0, neg=0;
-      int val=checkIfPointInside(xNew, yNew, n, j, i, option);
+      int pos=0, neg=0, val;
+      switch(option)
+      {
+        case 1:
+        case 2:
+          val=checkIfPointInsideLineSet(xNew, yNew, n, j, i, option);
+          break;
+        case 3:
+          val=checkIfPointInsideFunction(j,i);
+          break;
+        case 4:
+          val=checkIfPointInsideBlob(j,i);
+          break;
+      }
       if(val)
-        setForeGroundPixel(i,j);
+          setForeGroundPixel(i,j);
     }
   }
 }
@@ -270,28 +325,36 @@ int main(int argc, char *argv[])
 {
 
   //initialize the global variables
-  width = 300;
-  height = 300;
-  pixmap = new unsigned char[width * height * 3];  //Do you know why "3" is used?
+  width = 500;
+  height = 500;
   std::fstream inputFile;
-  inputFile.open("input.txt", std::fstream::in);
   int xpoints[100], ypoints[100];
-  readData(inputFile, xpoints, ypoints);
-  inputFile.close();  
+  pixmap = new unsigned char[width * height * 3];  //Do you know why "3" is used?  
   setPixels();
-  int option, n;
-  cout<<"Enter 1 for convex shape and 2 for star\n";
+  int option;
+  cout<<"Enter:\n1 for convex shape\n2 for star\n3 for function\n4 for blobby\n";
   cin >> option;
   switch(option)
   {
     case 1:
-      n=4;
+      cout<<"Reading data from 'inputConvex.txt'\n";
+      inputFile.open("inputConvex.txt", std::fstream::in);
+      readData(inputFile, xpoints, ypoints);
+      inputFile.close();
+      fillShape(xpoints, ypoints, 4, option);
       break;
     case 2:
-      n=5;
+      cout<<"Reading data from 'inputStar.txt'\n";
+      inputFile.open("inputStar.txt", std::fstream::in);
+      readData(inputFile, xpoints, ypoints);
+      inputFile.close();
+      fillShape(xpoints, ypoints, 5, option);
+      break;
+    case 3:
+    case 4:
+      fillShape(NULL, NULL, 0, option);
       break;
   }
-  fillShape(xpoints, ypoints, n, option);
   // OpenGL Commands:
   // Once "glutMainLoop" is executed, the program loops indefinitely to all
   // glut functions.  
