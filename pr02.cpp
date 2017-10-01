@@ -273,32 +273,66 @@ int checkIfPointInsideBlob(int x, int y)
   return 0;
 }
 
+void setPixelColor(int y, int x, int green, int blue)
+{
+  int i = (y * width + x) * 3; 
+  pixmap[i++] = 255;
+  pixmap[i++] = green;
+  pixmap[i] = blue;
+}
+
+void fillShadedCircle()
+{
+  int radius=100, xcenter=250, ycenter=250, green=0, blue=0, step=0;
+  while(radius>=1)
+  {
+    green=(step*255)/99;
+    blue=(step*255)/99;
+    for(int y=ycenter-radius-5;y<ycenter+radius+5;y++)
+    {
+      for(int x=xcenter-radius-5;x<xcenter+radius+5;x++)
+      {
+        if(checkIfPointInCircle(x,y,xcenter,ycenter,radius))
+          setPixelColor(y,x,green, blue);
+      }
+    }
+    step++;
+    radius--;
+  }          
+}
+
+
 
 void fillShape(int* x, int* y, int n, int option)
 {
   int xNew[100], yNew[100];
   if(option<3)
     formseq(x,y,xNew, yNew, n);
-  for(int i=0;i<height;i++)
+  if(option == 5)
+    fillShadedCircle();
+  else
   {
-    for(int j=0;j<width;j++)
+    for(int i=0;i<height;i++)
     {
-      int pos=0, neg=0, val;
-      switch(option)
+      for(int j=0;j<width;j++)
       {
-        case 1:
-        case 2:
-          val=checkIfPointInsideLineSet(xNew, yNew, n, j, i, option);
-          break;
-        case 3:
-          val=checkIfPointInsideFunction(j,i);
-          break;
-        case 4:
-          val=checkIfPointInsideBlob(j,i);
-          break;
-      }
-      if(val)
+        int val;
+        switch(option)
+        {
+          case 1:
+          case 2:
+            val=checkIfPointInsideLineSet(xNew, yNew, n, j, i, option);
+            break;
+          case 3:
+            val=checkIfPointInsideFunction(j,i);
+            break;
+          case 4:
+            val=checkIfPointInsideBlob(j,i);
+            break;
+        }
+        if(val)
           setForeGroundPixel(i,j);
+      }
     }
   }
 }
@@ -346,7 +380,7 @@ int main(int argc, char *argv[])
   pixmap = new unsigned char[width * height * 3];  //Do you know why "3" is used?  
   setPixels();
   int option;
-  cout<<"Enter:\n1 for convex shape\n2 for star\n3 for function\n4 for blobby\n";
+  cout<<"Enter:\n1 for convex shape\n2 for star\n3 for function\n4 for blobby\n5 for shaded circle\n";
   cin >> option;
   switch(option)
   {
@@ -366,6 +400,7 @@ int main(int argc, char *argv[])
       break;
     case 3:
     case 4:
+    case 5:
       fillShape(NULL, NULL, 0, option);
       break;
   }
