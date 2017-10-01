@@ -23,16 +23,24 @@
 #include <fstream>
 #include <cassert>
 #include <sstream>
-#include <string>
+#include <cstring>
+#include <malloc.h>
 
 using namespace std;
 
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
 // =============================================================================
-int width, height;
+int width, height, maxColorValue;
 unsigned char *pixmap;
 
+unsigned char* resizeArray(unsigned char* oldArray, long int oldSize, long int& newSize) 
+{
+    newSize = oldSize * 2;
+    unsigned char* newArray = new unsigned char[newSize];
+    std::memcpy( newArray, oldArray, oldSize * sizeof(unsigned char) );
+    return newArray;
+}
 
 // =============================================================================
 // setPixels()
@@ -366,6 +374,94 @@ void readData(std::fstream& inputFile, int* xpoints, int* ypoints)
   }
 }
 
+
+void fillCharacters(unsigned char* fileBuffer, long int& index, char* data)
+{
+  for(int i=0;i<strlen(data);i++)
+    fileBuffer[index++]=data[i];
+}
+
+void writeToFile(unsigned char* fileBuffer, long int numberOfCharacters, fstream& ppmFile)
+{  
+  for(long int i=0; i< numberOfCharacters; i++)
+  {
+    ppmFile << fileBuffer[i];
+  }
+}
+
+void writeHeader(unsigned char* fileBuffer, long int& index)
+{
+  maxColorValue=255;
+  char widthString[5], heightString[5], maxColorString[5];
+  sprintf(widthString, "%d", width);
+  sprintf(heightString, "%d", height);
+  sprintf(maxColorString, "%d", maxColorValue);
+  char magicNumberString[3];
+  strcpy(magicNumberString, "P6");
+  fillCharacters(fileBuffer, index, magicNumberString);
+  fileBuffer[index++]='\n';
+  fillCharacters(fileBuffer, index, widthString);
+  fileBuffer[index++]=' ';
+  fillCharacters(fileBuffer, index, heightString);
+  fileBuffer[index++]='\n';
+  fillCharacters(fileBuffer, index, maxColorString);
+  fileBuffer[index++]='\n';  
+}
+
+
+unsigned char* writePixelBufferToFileBuffer(unsigned char* fileBuffer, long int& index, long int origSize)
+{
+  int charCount=0;
+  for(int i=0;i<height;i++)
+  {
+    for(int j=0;j<width;j++)
+    {
+      if(index >= origSize-50)
+      {
+        unsigned char* tempBuffer = resizeArray(fileBuffer, origSize, origSize);
+        delete[] fileBuffer;
+        fileBuffer=tempBuffer;
+      }
+      int k=((height-i-1)*width+j)*3;
+      for(int x=0;x<3;x++)
+      fileBuffer[index++]=pixmap[k++];
+    }
+  }
+  return  fileBuffer;
+}
+
+void generatePPMFile(int option)
+{
+  std::fstream ppmFile;
+  char fileName[50];
+  switch(option)
+  {
+    case 1: 
+      strcpy(fileName,"outputConvex.ppm");
+      break;
+    case 2: 
+      strcpy(fileName,"outputStar.ppm");
+      break;
+    case 3: 
+      strcpy(fileName,"outputFunction.ppm");
+      break;
+    case 4: 
+      strcpy(fileName,"outputBlobby.ppm");
+      break;
+    case 5: 
+      strcpy(fileName,"outputShaded.ppm");
+      break;
+  }
+   
+  ppmFile.open(fileName,std::fstream::out);
+  long int index=0;
+  unsigned char* fileBuffer = new unsigned char[10000];
+  writeHeader(fileBuffer, index);
+  fileBuffer=writePixelBufferToFileBuffer(fileBuffer, index, 10000);
+  writeToFile(fileBuffer, index, ppmFile);
+  ppmFile.close();
+}
+
 // =============================================================================
 // main() Program Entry
 // =============================================================================
@@ -404,6 +500,7 @@ int main(int argc, char *argv[])
       fillShape(NULL, NULL, 0, option);
       break;
   }
+  generatePPMFile(option);
   // OpenGL Commands:
   // Once "glutMainLoop" is executed, the program loops indefinitely to all
   // glut functions.  
