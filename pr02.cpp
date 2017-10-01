@@ -1,19 +1,14 @@
 // =============================================================================
 // VIZA654/CSCE646 at Texas A&M University
-// Homework 0
-// Created by Anton Agana based from Ariel Chisholm's template
-// 05.23.2011
-//
-// This file is supplied with an associated makefile. Put both files in the same
-// directory, navigate to that directory from the Linux shell, and type 'make'.
-// This will create a program called 'pr01' that you can run by entering
-// 'homework0' as a command in the shell.
-//
-// If you are new to programming in Linux, there is an
-// excellent introduction to makefile structure and the gcc compiler here:
-//
-// http://www.cs.txstate.edu/labs/tutorials/tut_docs/Linux_Prog_Environment.pdf
-//
+// Homework 1
+// Generating convex quadrilateral (and other convex figures), star, function field, blobby and shaded circle
+// with antialiazing
+// For convex quadrilateral and star, input is taken from txt file on the same folder
+// Data format in the txt file:
+// x0 y0
+// x1 y1
+// x2 y2
+// and so on
 // =============================================================================
 
 #include <cstdlib>
@@ -33,38 +28,13 @@ using namespace std;
 int width, height, maxColorValue;
 unsigned char *pixmap;
 
+//Function to resize ppm file buffer array
 unsigned char* resizeArray(unsigned char* oldArray, long int oldSize, long int& newSize) 
 {
     newSize = oldSize * 2;
     unsigned char* newArray = new unsigned char[newSize];
     std::memcpy( newArray, oldArray, oldSize * sizeof(unsigned char) );
     return newArray;
-}
-
-// =============================================================================
-// setPixels()
-//
-// This function stores the RGB values of each pixel to "pixmap."
-// Then, "glutDisplayFunc" below will use pixmap to display the pixel colors.
-// =============================================================================
-void setPixels()
-{
-   for(int y = 0; y < height ; y++) {
-     for(int x = 0; x < width; x++) {
-       int i = (y * width + x) * 3; 
-       pixmap[i++] = 255;
-       pixmap[i++] = 0xFF; //Do you know what "0xFF" represents? Google it!
-       pixmap[i] = 0x00; //Learn to use the "0x" notation to your advantage.
-     }
-   }
-}
-
-void setForeGroundPixel(int y, int x)
-{
-  int i = (y * width + x) * 3; 
-  pixmap[i++] = 255;
-  pixmap[i++] = 0x00;
-  pixmap[i] = 0x00;
 }
 
 // =============================================================================
@@ -101,7 +71,9 @@ static void init(void)
   glClearColor(1,1,1,1); // Set background color.
 }
 
-
+//THis function is used while drawing a star or convex quadrilateral.
+//It creates an inplace arrangement of points read from inpt file such that,
+//the points are traversed in a clockwise fashion
 int* formseq(int *x, int* y, int* xNew, int* yNew, int n)
 {
   int min=999, minIndex;
@@ -140,13 +112,16 @@ int* formseq(int *x, int* y, int* xNew, int* yNew, int n)
     nextIndex=(n+nextIndex+flag)%n;
   }
 }
- 
+
+//Returns the slope of line
 float slope(int x0, int x1, int y0, int y1)
 {
   return ((float)(y0-y1)/(float)(x0-x1));
 }
 
 
+//Takes in a point p(xtest,ytest) and computes whether f(x,y)<=0 where f(x,y) is a line equation 
+//taking into account boundary conditions like 0 slope and infinite slope
 
 int checkIfPointInsideLineSet(int* x, int* y, int n, double xtest, double ytest, int option)
 {
@@ -232,35 +207,43 @@ int checkIfPointInsideLineSet(int* x, int* y, int n, double xtest, double ytest,
   return 0;
 }
 
+//I am using y=100sin(x) as the function f(x,y). THis method checks if the value of f(x,y) <=0 for p(x,y)
 
-int checkIfPointInsideFunction(int x, int y)
+int checkIfPointInsideFunction(double x, double y)
 {
   double xVal=(x*360)/width;
   double xRad = (xVal*3.14159)/180;
   double yVal=(100*sin(xRad))+500;
   if(yVal < 500)
   {
-    if(y>=(int)yVal && y<= 500)
+    if(y>=yVal && y<= 500)
       return 1;
   }
   else
   {
-    if(y<=(int)yVal && y>=500)
+    if(y<=yVal && y>=500)
       return 1;
   }
   return 0;
 }
 
+//THis method checks if given point is inside a circle of center xcenter,ycenter and given radius,
+// by checking if f(x,y) <=0 for x,y where f is circle equation.
 
-int checkIfPointInCircle(int x, int y, double xcenter, double ycenter, int radius)
+int checkIfPointInCircle(double x, double y, double xcenter, double ycenter, int radius)
 {
   double dist = pow((pow((x-xcenter),2)+pow((y-ycenter),2)),0.5);
-  if ((int)dist<=radius)
+  if (dist<radius)
     return 1;
   return 0;
 }
 
-int checkIfPointInsideBlob(int x, int y)
+
+//For constructing the blob, I have f1(x,y)=> y=300sin(x) and f2(x,y)=> y=100sin(9x) between x=0 degree to 180 degree.
+//SInce the intersection of f1 and f2 results in sharp edges, I am cutting it off by introducing a circle function and
+//checking for the intersection of all 3 functions.
+
+int checkIfPointInsideBlob(double x, double y)
 {
   if(x>=200 && x<=800)
   {
@@ -270,7 +253,7 @@ int checkIfPointInsideBlob(int x, int y)
     double ySineVal2=(100*sin(xRad*9))+400;
     if(ySineVal1 < ySineVal2)
     {
-      if(y>=(int)ySineVal1 && y<= ySineVal2)
+      if(y>=ySineVal1 && y<= ySineVal2)
       {
         if(checkIfPointInCircle(x, y, 500, 400, 250))
           return 1;
@@ -278,7 +261,7 @@ int checkIfPointInsideBlob(int x, int y)
     }
     else
     {
-      if(y<=(int)ySineVal1 && y>=ySineVal2)
+      if(y<=ySineVal1 && y>=ySineVal2)
       {
         if(checkIfPointInCircle(x, y, 500, 400, 250))
           return 1;
@@ -288,6 +271,7 @@ int checkIfPointInsideBlob(int x, int y)
   return 0;
 }
 
+//Set red=255 and, green and blue as given
 void setPixelColor(int y, int x, int green, int blue)
 {
   int i = (y * width + x) * 3; 
@@ -296,6 +280,7 @@ void setPixelColor(int y, int x, int green, int blue)
   pixmap[i] = blue;
 }
 
+//Antialized circle using uniform jitter sampling
 
 int antialiazeCircle(int i, int j, int xcenter, int ycenter, int radius)
 {
@@ -312,16 +297,27 @@ int antialiazeCircle(int i, int j, int xcenter, int ycenter, int radius)
       }
     }
   }
-  int val = ceil(colorVal);
+  double greenVal = (double)255*(double)((double)1-colorVal);
+  int val = (int)(greenVal);
   return val;  
 }
 
 
-
+//For getting a shaded circle, one can draw concentric circles where the color changes graduallly
+//from red to white in a stepwise manner
 
 void fillShadedCircle()
 {
   int radius=200, xcenter=500, ycenter=500, green=0, blue=0, step=0;
+  for(int y=0;y<height;y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int greenVal=antialiazeCircle(x, y, xcenter, ycenter, radius);
+      setPixelColor(y,x,greenVal,0);
+    }
+  }
+  radius--;
   while(radius>=1)
   {
     green=(step*255)/199;
@@ -330,46 +326,47 @@ void fillShadedCircle()
     {
       for(int x=xcenter-radius-5;x<xcenter+radius+5;x++)
       {
-        if(antialiazeCircle(x,y,xcenter,ycenter,radius))
+        if(checkIfPointInCircle(x,y,xcenter,ycenter,radius))
           setPixelColor(y,x,green, blue);
       }
     }
     step++;
-    radius--;
-  }          
+    radius--;   
+  }      
 }
 
-
+//Antialized Convex quadrilateral and star using uniform jitter sampling
 int antialiazeLineFunction(int* xNew, int* yNew, int n, int i, int j, int option)
 {
   double colorVal=0;
-  for(int m=0;m<16;m++)
+  for(int m=0;m<4;m++)
   {
-    for(int l=0;l<16;l++)
+    for(int l=0;l<4;l++)
     {
-      double x= i + (double)m/16 + ((double)rand() / (double)RAND_MAX)/16;
-      double y= j + (double)l/16 + ((double)rand() / (double)RAND_MAX)/16;
+      double x= i + (double)m/4 + ((double)rand() / (double)RAND_MAX)/4;
+      double y= j + (double)l/4 + ((double)rand() / (double)RAND_MAX)/4;
       if(checkIfPointInsideLineSet(xNew, yNew, n, x, y, option))
       {
-        colorVal=colorVal+((double)1/(double)256);
+        colorVal=colorVal+((double)1/(double)16);
       }
     }
   }
-  int val = colorVal+0.5;
+  double greenVal = (double)255*(double)((double)1-colorVal);
+  int val = (int)(greenVal);
   return val;  
 }
 
-
+//Antialized function field drawing and blob using uniform jitter sampling
 
 int antialiazeCurveFunctions(int i, int j, int option)
 {
   double colorVal=0;
-  for(int m=0;m<16;m++)
+  for(int m=0;m<4;m++)
   {
-    for(int l=0;l<16;l++)
+    for(int l=0;l<4;l++)
     {
-      double x= i + (double)l/16 + ((double)rand() / (double)RAND_MAX)/16;
-      double y= j + (double)m/16 + ((double)rand() / (double)RAND_MAX)/16;
+      double x= i + (double)l/4 + ((double)rand() / (double)RAND_MAX)/4;
+      double y= j + (double)m/4 + ((double)rand() / (double)RAND_MAX)/4;
       int checkVal;
       switch(option)
       {
@@ -383,14 +380,16 @@ int antialiazeCurveFunctions(int i, int j, int option)
       
       if(checkVal)
       {
-        colorVal=colorVal+((double)1/(double)256);
+        colorVal=colorVal+((double)1/(double)16);
       }
     }
   }
-  int val = ceil(colorVal);
+  double greenVal = (double)255*(double)((double)1-colorVal);
+  int val = (int)(greenVal);
   return val;  
 }
 
+//Call the appropriate antializing function and set pixel color
 
 void fillShape(int* x, int* y, int n, int option)
 {
@@ -414,19 +413,21 @@ void fillShape(int* x, int* y, int n, int option)
             break;
           case 3:
           case 4:
-            val=antialiazeCurveFunctions(j,i, option);
+            val=antialiazeCurveFunctions(j,i,option);
             break;
         }
-        if(val)
-        {
-          setForeGroundPixel(i,j);
-        }
+        setPixelColor(i,j,val,0);
       }
     }
   }
 }
 
-
+//For star and convex shape, read data from txt file
+//Data format:
+//x0 y0
+//x1 y1
+//x2 y2
+//and so on
 
 void readData(std::fstream& inputFile, int* xpoints, int* ypoints)
 {
@@ -456,6 +457,7 @@ void readData(std::fstream& inputFile, int* xpoints, int* ypoints)
 }
 
 
+//**********************Functions to save from pixelMap to ppm file*****************************************
 void fillCharacters(unsigned char* fileBuffer, long int& index, char* data)
 {
   for(int i=0;i<strlen(data);i++)
@@ -554,8 +556,7 @@ int main(int argc, char *argv[])
   height = 1000;
   std::fstream inputFile;
   int xpoints[100], ypoints[100];
-  pixmap = new unsigned char[width * height * 3];  //Do you know why "3" is used?  
-  setPixels();
+  pixmap = new unsigned char[width * height * 3];
   int option;
   cout<<"Enter:\n1 for convex shape\n2 for star\n3 for function\n4 for blobby\n5 for shaded circle\n";
   cin >> option;
