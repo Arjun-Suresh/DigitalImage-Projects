@@ -27,7 +27,6 @@
 #include <malloc.h>
 
 using namespace std;
-
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
 // =============================================================================
@@ -149,7 +148,7 @@ float slope(int x0, int x1, int y0, int y1)
 
 
 
-int checkIfPointInsideLineSet(int* x, int* y, int n, int xtest, int ytest, int option)
+int checkIfPointInsideLineSet(int* x, int* y, int n, double xtest, double ytest, int option)
 {
   int neg=0;
   int pos=0;
@@ -164,7 +163,9 @@ int checkIfPointInsideLineSet(int* x, int* y, int n, int xtest, int ytest, int o
       if(y1>y0)
       {
         if(xtest>=x0)
+        {
           neg++;
+        }
         else 
           pos++;
       }
@@ -197,15 +198,21 @@ int checkIfPointInsideLineSet(int* x, int* y, int n, int xtest, int ytest, int o
     {
       if(slope(x0,x1,y0,y1) > 0)
       {
-        if(((((float)(ytest-y0))/((float)(y1-y0)))-(((float)(xtest-x0))/((float)(x1-x0)))) <= 0)
-          neg++;
+        double val = ((ytest-y0)/(y1-y0)) - ((xtest-x0)/(x1-x0)); 
+        if(val <= 0)
+        {
+          neg++;   
+        }
         else
           pos++;
       }
       else
       {
-        if(((((float)(xtest-x0))/((float)(x1-x0)))-(((float)(ytest-y0))/((float)(y1-y0)))) <= 0)
-          neg++;
+        double val = ((xtest-x0)/(x1-x0)) - ((ytest-y0)/(y1-y0));
+        if(val <= 0)
+        {
+          neg++;          
+        }
         else
           pos++;
       }     
@@ -230,15 +237,15 @@ int checkIfPointInsideFunction(int x, int y)
 {
   double xVal=(x*360)/width;
   double xRad = (xVal*3.14159)/180;
-  double yVal=(100*sin(xRad))+200;
-  if(yVal < 200)
+  double yVal=(100*sin(xRad))+500;
+  if(yVal < 500)
   {
-    if(y>=(int)yVal && y<= 200)
+    if(y>=(int)yVal && y<= 500)
       return 1;
   }
   else
   {
-    if(y<=(int)yVal && y>=200)
+    if(y<=(int)yVal && y>=500)
       return 1;
   }
   return 0;
@@ -255,17 +262,17 @@ int checkIfPointInCircle(int x, int y, double xcenter, double ycenter, int radiu
 
 int checkIfPointInsideBlob(int x, int y)
 {
-  if(x>=50 && x<=450)
+  if(x>=200 && x<=800)
   {
-    double xVal = ((x-50)*180)/400;
+    double xVal = ((x-200)*180)/600;
     double xRad = (xVal*3.14159)/180;
-    double ySineVal1=(100*sin(xRad))+200;
-    double ySineVal2=(25*sin(xRad*9))+200;
+    double ySineVal1=(300*sin(xRad))+400;
+    double ySineVal2=(100*sin(xRad*9))+400;
     if(ySineVal1 < ySineVal2)
     {
       if(y>=(int)ySineVal1 && y<= ySineVal2)
       {
-        if(checkIfPointInCircle(x, y, 250, 200, 150))
+        if(checkIfPointInCircle(x, y, 500, 400, 250))
           return 1;
       }
     }
@@ -273,7 +280,7 @@ int checkIfPointInsideBlob(int x, int y)
     {
       if(y<=(int)ySineVal1 && y>=ySineVal2)
       {
-        if(checkIfPointInCircle(x, y, 250, 200, 150))
+        if(checkIfPointInCircle(x, y, 500, 400, 250))
           return 1;
       }
     }
@@ -289,18 +296,41 @@ void setPixelColor(int y, int x, int green, int blue)
   pixmap[i] = blue;
 }
 
+
+int antialiazeCircle(int i, int j, int xcenter, int ycenter, int radius)
+{
+  double colorVal=0;
+  for(int m=0;m<4;m++)
+  {
+    for(int l=0;l<4;l++)
+    {
+      double x= i + (double)l/4 + ((double)rand() / (double)RAND_MAX)/4;
+      double y= j + (double)m/4 + ((double)rand() / (double)RAND_MAX)/4;
+      if(checkIfPointInCircle(x,y,xcenter,ycenter,radius))
+      {
+        colorVal=colorVal+((double)1/(double)16);
+      }
+    }
+  }
+  int val = ceil(colorVal);
+  return val;  
+}
+
+
+
+
 void fillShadedCircle()
 {
-  int radius=100, xcenter=250, ycenter=250, green=0, blue=0, step=0;
+  int radius=200, xcenter=500, ycenter=500, green=0, blue=0, step=0;
   while(radius>=1)
   {
-    green=(step*255)/99;
-    blue=(step*255)/99;
+    green=(step*255)/199;
+    blue=(step*255)/199;
     for(int y=ycenter-radius-5;y<ycenter+radius+5;y++)
     {
       for(int x=xcenter-radius-5;x<xcenter+radius+5;x++)
       {
-        if(checkIfPointInCircle(x,y,xcenter,ycenter,radius))
+        if(antialiazeCircle(x,y,xcenter,ycenter,radius))
           setPixelColor(y,x,green, blue);
       }
     }
@@ -309,6 +339,57 @@ void fillShadedCircle()
   }          
 }
 
+
+int antialiazeLineFunction(int* xNew, int* yNew, int n, int i, int j, int option)
+{
+  double colorVal=0;
+  for(int m=0;m<16;m++)
+  {
+    for(int l=0;l<16;l++)
+    {
+      double x= i + (double)m/16 + ((double)rand() / (double)RAND_MAX)/16;
+      double y= j + (double)l/16 + ((double)rand() / (double)RAND_MAX)/16;
+      if(checkIfPointInsideLineSet(xNew, yNew, n, x, y, option))
+      {
+        colorVal=colorVal+((double)1/(double)256);
+      }
+    }
+  }
+  int val = colorVal+0.5;
+  return val;  
+}
+
+
+
+int antialiazeCurveFunctions(int i, int j, int option)
+{
+  double colorVal=0;
+  for(int m=0;m<16;m++)
+  {
+    for(int l=0;l<16;l++)
+    {
+      double x= i + (double)l/16 + ((double)rand() / (double)RAND_MAX)/16;
+      double y= j + (double)m/16 + ((double)rand() / (double)RAND_MAX)/16;
+      int checkVal;
+      switch(option)
+      {
+        case 3:
+          checkVal = checkIfPointInsideFunction(x,y);
+          break;
+        case 4:
+          checkVal = checkIfPointInsideBlob(x,y);
+          break;
+      }
+      
+      if(checkVal)
+      {
+        colorVal=colorVal+((double)1/(double)256);
+      }
+    }
+  }
+  int val = ceil(colorVal);
+  return val;  
+}
 
 
 void fillShape(int* x, int* y, int n, int option)
@@ -329,17 +410,17 @@ void fillShape(int* x, int* y, int n, int option)
         {
           case 1:
           case 2:
-            val=checkIfPointInsideLineSet(xNew, yNew, n, j, i, option);
+            val=antialiazeLineFunction(xNew, yNew, n, j, i, option);
             break;
           case 3:
-            val=checkIfPointInsideFunction(j,i);
-            break;
           case 4:
-            val=checkIfPointInsideBlob(j,i);
+            val=antialiazeCurveFunctions(j,i, option);
             break;
         }
         if(val)
+        {
           setForeGroundPixel(i,j);
+        }
       }
     }
   }
@@ -469,8 +550,8 @@ int main(int argc, char *argv[])
 {
 
   //initialize the global variables
-  width = 500;
-  height = 500;
+  width = 1000;
+  height = 1000;
   std::fstream inputFile;
   int xpoints[100], ypoints[100];
   pixmap = new unsigned char[width * height * 3];  //Do you know why "3" is used?  
