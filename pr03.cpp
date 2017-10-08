@@ -28,12 +28,16 @@
 #define COLORFOREGROUND 0
 #define COLORBACKGROUND 1
 
+
+#define maximum(x, y, z) ((x) > (y)? ((x) > (z)? (x) : (z)) : ((y) > (z)? (y) : (z)))
+#define minimum(x, y, z) ((x) < (y)? ((x) < (z)? (x) : (z)) : ((y) < (z)? (y) : (z)))
+
 using namespace std;
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
 // =============================================================================
-int width, height, maxColorValue, magicNo;
-unsigned char *pixmapOrig, *pixmapComputed;
+int width, height, maxColorValue, magicNo,widthControl, heightControl;
+unsigned char *pixmapOrig, *pixmapControl, *pixmapComputed;
 
 //Function to resize ppm file buffer array
 unsigned char* resizeArray(unsigned char* oldArray, long int oldSize, long int& newSize) 
@@ -53,9 +57,20 @@ void setPixelColor(int y, int x, int red, int green, int blue)
   pixmapComputed[i] = blue;
 }
 
-void setPixelColorOrig(long int &val, long int& index, unsigned char* fileBuffer)
+void setPixelColorOrig(long int &val, long int& index, unsigned char* fileBuffer, int option)
 {
-  pixmapOrig[val++]=fileBuffer[index++];
+  switch (option)
+  {
+    case 1:
+    case 2:
+      pixmapOrig[val++]=fileBuffer[index++];
+      break;
+    case 3:
+      pixmapControl[val++]=fileBuffer[index++];
+      break;
+    default:
+      return;
+  }
 }
 // =============================================================================
 // OpenGL Display and Mouse Processing Functions.
@@ -146,7 +161,7 @@ bool parseMagicNumber(long int& index, unsigned char* fileBuffer, long int numOf
   return true;
 }
 
-bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharacters, int& parseValue, int valueId)
+bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharacters, int& parseValue, int valueId, int option)
 {
   int value;
   while(index<numOfCharacters)
@@ -189,10 +204,16 @@ bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharac
   switch(valueId)
   {
     case WIDTHVALUEID:
+      if(option<3)
       width=value;
+      else
+      widthControl=value;
       break;
     case HEIGHTVALUEID:
+      if(option<3)
       height=value;
+      else
+      heightControl=value;
       break;
     case MAXCOLORVALUEID:
       maxColorValue=value;
@@ -201,22 +222,33 @@ bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharac
   return true;
 }
 
-bool fillPixelsBin(long int& index, unsigned char* fileBuffer, long int numOfCharacters)
+bool fillPixelsBin(long int& index, unsigned char* fileBuffer, long int numOfCharacters,int option)
 {
-  long int rowVal=0,colVal=0;
-  while(rowVal<height)
+  int wVal,hVal;
+  if(option<3)
   {
-    long int val=(((height-rowVal-1)*width)+colVal)*3;
+    wVal=width;
+    hVal=height;
+  }
+  else
+  {
+    wVal=widthControl;
+    hVal=heightControl;
+  }
+  long int rowVal=0,colVal=0;
+  while(rowVal<hVal)
+  {
+    long int val=(((hVal-rowVal-1)*wVal)+colVal)*3;
     for(int i=0;i<3;i++)
-    	setPixelColorOrig(val, index, fileBuffer);
-    colVal=(colVal+1)%width;
+    	setPixelColorOrig(val, index, fileBuffer, option);
+    colVal=(colVal+1)%wVal;
     if(!colVal)
       rowVal++;
   }
   return true;
 }
 
-bool readPPMFile(char* filePath)
+bool readPPMFile(char* filePath, int option)
 {
   std::fstream ppmFile;
   std::ifstream checkFile(filePath);
@@ -254,7 +286,7 @@ bool readPPMFile(char* filePath)
     }
     if(magicNumberParsed && !widthParsed)
     {
-      if(!parseValue(index, fileBuffer, numOfCharacters, widthParsed, WIDTHVALUEID))
+      if(!parseValue(index, fileBuffer, numOfCharacters, widthParsed, WIDTHVALUEID, option))
       {
         return false;
       }
@@ -262,7 +294,7 @@ bool readPPMFile(char* filePath)
     }
     if(magicNumberParsed && widthParsed && !heightParsed)
     {
-      if(!parseValue(index, fileBuffer, numOfCharacters, heightParsed, HEIGHTVALUEID))
+      if(!parseValue(index, fileBuffer, numOfCharacters, heightParsed, HEIGHTVALUEID, option))
       {
         return false;
       }
@@ -270,7 +302,7 @@ bool readPPMFile(char* filePath)
     }
     if(magicNumberParsed && widthParsed && heightParsed && !maxColorValueParsed)
     {
-      if(!parseValue(index, fileBuffer, numOfCharacters, maxColorValueParsed, MAXCOLORVALUEID))
+      if(!parseValue(index, fileBuffer, numOfCharacters, maxColorValueParsed, MAXCOLORVALUEID, option))
       {
         return false;
       }
@@ -278,8 +310,11 @@ bool readPPMFile(char* filePath)
     }
     if(magicNumberParsed && widthParsed && heightParsed && maxColorValueParsed)
     {
-      pixmapOrig = new unsigned char[width*height*3];
-      if(!(fillPixelsBin(index, fileBuffer, numOfCharacters)))
+      if( option < 3)
+        pixmapOrig = new unsigned char[width*height*3];
+      else
+        pixmapControl = new unsigned char[widthControl*heightControl*3];
+      if(!(fillPixelsBin(index, fileBuffer, numOfCharacters,option)))
         return false;
       return true;
     }
@@ -311,7 +346,7 @@ void writeToFile(unsigned char* fileBuffer, long int numberOfCharacters, fstream
 
 void writeHeader(unsigned char* fileBuffer, long int& index)
 {
-  maxColorValue=255;
+  maxColorValue=255;    
   char widthString[5], heightString[5], maxColorString[5];
   sprintf(widthString, "%d", width);
   sprintf(heightString, "%d", height);
@@ -362,6 +397,9 @@ void generatePPMFile(int option)
     case 2: 
       strcpy(fileName,"outputCubic.ppm");
       break;
+    case 3: 
+      strcpy(fileName,"outputHueChanged.ppm");
+      break;
   }
    
   ppmFile.open(fileName,std::fstream::out);
@@ -372,6 +410,8 @@ void generatePPMFile(int option)
   writeToFile(fileBuffer, index, ppmFile);
   ppmFile.close();
 }
+
+
 
 
 
@@ -411,9 +451,9 @@ void readData(char* filePath, int* rArray, int& num)
 
 
 
-//************************************************************************************************
-//*************************************Image Manipulation functions*******************************
-//************************************************************************************************
+//*****************************************************************************************************
+//*************************************Image color Manipulation functions******************************
+//*****************************************************************************************************
 int findInterval(float color, float* x, int n)
 {
   int i;
@@ -497,32 +537,199 @@ void colorManipulate(int* rArray, int n, int option)
 
 
 
+
+
+//*****************************************************************************************************
+//*****************************************Image hue manipulation functions****************************
+//*****************************************************************************************************
+void RGBtoHSV(int r, int g, int b, double &h, double& s, double& v){
+
+  double red, green, blue;
+  double max, min, delta;
+
+  red = r / 255.0; green = g / 255.0; blue = b / 255.0;  /* r, g, b to 0 - 1 scale */
+
+  max = maximum(red, green, blue);
+  min = minimum(red, green, blue);
+
+  v = max;        /* value is maximum of r, g, b */
+
+  if(max == 0){    /* saturation and hue 0 if value is 0 */
+    s = 0;
+    h = 0;
+  }
+  else{
+    s = (max - min) / max;           /* saturation is color purity on scale 0 - 1 */
+
+    delta = max - min;
+       if(delta == 0)                    /* hue doesn't matter if saturation is 0 */
+      h = 0;
+    else{
+      if(red == max)                  /* otherwise, determine hue on scale 0 - 360 */
+        h = (green - blue) / delta;
+      else if(green == max)
+        h = 2.0 + (blue - red) / delta;
+      else /* (blue == max) */
+        h = 4.0 + (red - green) / delta;
+      h = h * 60.0;
+      if(h < 0)
+        h = h + 360.0;
+    }
+  }
+}
+
+void HSVtoRGB(double h, double s, double v, int& r, int& g, int& b)
+{
+  double redVal, greenVal, blueVal;
+  if(v == 0.0)
+  {
+    r=0;
+    g=0;
+    b=0;
+    return;
+  }
+  if(s == 0.0)
+  {
+    redVal=v;
+    greenVal=redVal;
+    blueVal=redVal;
+  }
+  else if(0.0<=h && h<=60.0)
+  {
+    h=h/60;
+    redVal=v;
+    blueVal=v-s*v;
+    greenVal=blueVal+(h*(redVal-blueVal));
+    
+  }
+  else if(300.0<=h && h<=360.0)
+  {
+    h-=360;
+    h=h/60;
+    redVal=v;
+    greenVal=v-s*v;
+    blueVal=greenVal-(h*(redVal-greenVal));
+  }
+  else if(60.0<=h && h<=120.0)
+  {
+    h=h/60;
+    h-=2;
+    greenVal=v;
+    blueVal=v-s*v;
+    redVal=blueVal-(h*(greenVal-blueVal));    
+  }
+  else if(120.0<=h && h<=180.0)
+  {
+    h=h/60;
+    h-=2;
+    greenVal=v;
+    redVal=v-s*v;
+    blueVal=redVal+(h*(greenVal-redVal));
+  }
+  else if(180.0<=h && h<=240.0)
+  {
+    h=h/60;
+    h-=4;
+    blueVal=v;
+    redVal=v-s*v;
+    greenVal=redVal-(h*(blueVal-redVal));    
+  }
+  else if(240.0<=h && h<=300.0)
+  {
+    h=h/60;
+    h-=4;
+    blueVal=v;
+    greenVal=v-s*v;
+    redVal=greenVal+(h*(blueVal-greenVal));
+  }
+  r=(int)(redVal*255.0);
+  g=(int)(greenVal*255.0);
+  b=(int)(blueVal*255.0);
+}
+
+void fillControlHue(double* controlHue)
+{
+  int count=0, red, green, blue;
+  for (int y=0;y<heightControl;y++)
+  {
+    for(int x=0;x<widthControl;x++)
+    {     
+      int i = (y * widthControl + x) * 3;
+      red=pixmapControl[i++];
+      green=pixmapControl[i++];
+      blue=pixmapControl[i];
+      double hue,sat,val;
+      RGBtoHSV(red,green,blue,hue,sat,val);
+      controlHue[count++]=hue;
+    }
+  }
+}
+
+void hueManipulate()
+{
+  double* controlHue = new double[widthControl*heightControl];
+  fillControlHue(controlHue);
+  
+  for (int y=0;y<height;y++)
+  {
+    for(int x=0;x<width;x++)
+    {     
+      int i = (y * width + x) * 3;       
+      int red,green, blue;
+      red=pixmapOrig[i++];
+      green=pixmapOrig[i++];
+      blue=pixmapOrig[i];
+
+      double hue,sat,val;
+      RGBtoHSV(red,green,blue,hue,sat,val);
+      double newHue = controlHue[(y * width + x)%(widthControl*heightControl)];
+
+      int nRed,nBlue,nGreen;
+      HSVtoRGB(newHue,sat,val,nRed,nGreen,nBlue);
+
+      setPixelColor(y,x,nRed,nGreen,nBlue);      
+    }
+  }
+  
+}
+
 // =============================================================================
 // main() Program Entry
 // =============================================================================
 int main(int argc, char *argv[])
 {
-
-  int num=0;
-  std::fstream inputFile;
-  int rArray[1000];
-  char filePath[100]="inputFunction.txt";
-  readData(filePath, rArray, num);
-
-
-  char inputPPMFile[100];
-  cout<<"Enter the ppm file to be manipulated\n";
-  cin>>inputPPMFile;
-  readPPMFile(inputPPMFile);
-  pixmapComputed = new unsigned char[width * height * 3];
-
-
   int option;
-  cout<<"Enter options:\n1.Linear interpolation\n2.Cubic hermitian interpolation\n";
+  cout<<"Enter options:\n1.Linear interpolation\n2.Cubic hermitian interpolation\n3. Hue manipulation\n";
   cin>>option;
-  colorManipulate(rArray,num-1,option);
-
-
+  
+  if(option<3)
+  {
+    int num=0;
+    std::fstream inputFile;
+    int rArray[1000];
+    char filePath[100]="inputFunction.txt";
+    readData(filePath, rArray, num);
+    char inputPPMFile[100];
+    cout<<"Enter the ppm file to be manipulated\n";
+    cin>>inputPPMFile;
+    readPPMFile(inputPPMFile,1);
+    pixmapComputed = new unsigned char[width * height * 3];
+    colorManipulate(rArray,num-1,option);
+  }
+  
+  if(option == 3)
+  {
+    char inputPPMFile[100], controlPPMFile[100];
+    cout<<"Enter the ppm file to be manipulated\n";
+    cin>>inputPPMFile;
+    cout<<"Enter the control ppm file\n";
+    cin>>controlPPMFile;
+    readPPMFile(inputPPMFile,2);
+    readPPMFile(controlPPMFile,3);
+    pixmapComputed = new unsigned char[width * height * 3];
+    hueManipulate();
+  }
+  
   generatePPMFile(option);
 
 
