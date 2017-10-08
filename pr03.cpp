@@ -1,14 +1,11 @@
 // =============================================================================
 // VIZA654/CSCE646 at Texas A&M University
 // Homework 3
-// Generating convex quadrilateral (and other convex figures), star, function field, blobby and shaded circle
-// with antialiazing
-// For convex quadrilateral and star, input is taken from txt file on the same folder
+// Image color and hue manipulation
+// For color manipulation, input is taken from txt file on the same folder
 // Data format in the txt file:
-// x0 y0
-// x1 y1
-// x2 y2
-// and so on
+// r0 r1 r2 r3 .... rn
+// output files are generated in the same folder
 // =============================================================================
 
 #include <cstdlib>
@@ -454,6 +451,8 @@ void readData(char* filePath, int* rArray, int& num)
 //*****************************************************************************************************
 //*************************************Image color Manipulation functions******************************
 //*****************************************************************************************************
+
+//Which interval of xarray does x belong to
 int findInterval(float color, float* x, int n)
 {
   int i;
@@ -465,6 +464,7 @@ int findInterval(float color, float* x, int n)
   return i-1;
 }
 
+//get xi,yi from r0,....,rn
 void formXYPoints(float* x, float* y, int* rArray, int n)
 {
   x[0]=0;
@@ -476,6 +476,7 @@ void formXYPoints(float* x, float* y, int* rArray, int n)
   }
 }
 
+//get mi array used for cubic hermite spline
 void formSlope(float* m, float* y, int n)
 {
   m[0]=(y[1]*n)/2;
@@ -484,6 +485,8 @@ void formSlope(float* m, float* y, int n)
   m[n]=-1*((y[n-1]*n)/2);
 }
 
+
+//Basic linear interpolation and cubic hermite spline interpolation used
 int interpolate(int color, float* x, float* y, float* slope, int n, int option)
 {
   float colorVal = (float)color/255;  
@@ -511,6 +514,7 @@ int interpolate(int color, float* x, float* y, float* slope, int n, int option)
   return (int)output;
 }
 
+//For each pixel, interpolate red, green and blue values into the o/p color space
 void colorManipulate(int* rArray, int n, int option)
 {
   int red,green,blue;
@@ -542,6 +546,8 @@ void colorManipulate(int* rArray, int n, int option)
 //*****************************************************************************************************
 //*****************************************Image hue manipulation functions****************************
 //*****************************************************************************************************
+
+//I have borrowed the code given in the project page
 void RGBtoHSV(int r, int g, int b, double &h, double& s, double& v){
 
   double red, green, blue;
@@ -578,6 +584,7 @@ void RGBtoHSV(int r, int g, int b, double &h, double& s, double& v){
   }
 }
 
+//Basic conversion using checking which interval h falls into
 void HSVtoRGB(double h, double s, double v, int& r, int& g, int& b)
 {
   double redVal, greenVal, blueVal;
@@ -647,6 +654,7 @@ void HSVtoRGB(double h, double s, double v, int& r, int& g, int& b)
   b=(int)(blueVal*255.0);
 }
 
+//Get hue from control image
 void fillControlHue(double* controlHue)
 {
   int count=0, red, green, blue;
@@ -665,6 +673,8 @@ void fillControlHue(double* controlHue)
   }
 }
 
+//Replace hue values of original image using that of control image
+//SInce the control image can be of any size, I am cycling through the hues if the control image is smaller
 void hueManipulate()
 {
   double* controlHue = new double[widthControl*heightControl];
