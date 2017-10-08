@@ -429,46 +429,68 @@ void formXYPoints(float* x, float* y, int* rArray, int n)
 {
   x[0]=0;
   y[0]=rArray[0];
-  for(int i=0;i<=n;i++)
+  for(int i=1;i<=n;i++)
   {
     x[i]=x[i-1]+1/(float)(n);
     y[i]=rArray[i];
   }
 }
 
-int interpolateLinear(int color, float* x, float* y, int n)
+void formSlope(float* m, float* y, int n)
+{
+  m[0]=(y[1]*n)/2;
+  for(int i=1;i<n;i++)
+    m[i]=((y[i+1]-y[i-1])*n)/2;
+  m[n]=-1*((y[n-1]*n)/2);
+}
+
+int interpolate(int color, float* x, float* y, float* slope, int n, int option)
 {
   float colorVal = (float)color/255;  
   int interval = findInterval(colorVal,x,n);
+  float tVal = (colorVal-x[interval])/(x[interval+1]-x[interval]);
+  float output=0;
   if(interval==n)
     return (int)y[n];
-  float tVal = (colorVal-x[interval])/(x[interval+1]-x[interval]);
-  float output = (y[interval]*(1-tVal))+(y[interval+1]*tVal);
-  cout<<output<<endl;
-  if (output>255)
+  if (option == 1)
   {
-    cout<<output<<endl;
-    char c;
-    cin>>c;
+    output = (y[interval]*(1-tVal))+(y[interval+1]*tVal);
   }
+  else if (option == 2)
+  {
+    float h0 = 2*pow(tVal,3) - 3*pow(tVal,2) + 1;
+    float h1 = 3*pow(tVal,2) - 2*pow(tVal,3);
+    float h2 = pow(tVal,3) - 2*pow(tVal,2) + tVal;
+    float h3 = pow(tVal,3) - pow(tVal,2);
+    output = y[interval]*h0 + y[interval+1]*h1 + slope[interval]*h2 + slope[interval+1]*h3;    
+  }
+  if(output>255)
+    output=255;
+  if(output<0)
+    output=0;
   return (int)output;
 }
 
-void colorManipulate(int* rArray, int n)
+void colorManipulate(int* rArray, int n, int option)
 {
   int red,green,blue;
-  float xArray[1000],yArray[1000];
+  float xArray[1000],yArray[1000],slope[1000];
   formXYPoints(xArray,yArray,rArray,n);
+  if(option==2)
+    formSlope(slope,yArray,n);
+    
   for (int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
-    {      
+    {     
       int i = (y * width + x) * 3;
       red=pixmapOrig[i++];
-      int redNew=interpolateLinear(red,xArray,yArray,n);
+      int redNew=interpolate(red,xArray,yArray,slope,n,option);
       green=pixmapOrig[i++];
+      int greenNew=interpolate(green,xArray,yArray,slope,n,option);
       blue=pixmapOrig[i];
-      setPixelColor(y,x,redNew,green,blue);
+      int blueNew=interpolate(blue,xArray,yArray,slope,n,option);
+      setPixelColor(y,x,redNew,greenNew,blueNew);
     }
   }
 }
@@ -498,15 +520,7 @@ int main(int argc, char *argv[])
   int option;
   cout<<"Enter options:\n1.Linear interpolation\n2.Cubic hermitian interpolation\n";
   cin>>option;
-  switch(option)
-  {
-    case 1:
-      colorManipulate(rArray,num-1);
-      break;
-    case 2:
-      colorManipulate(rArray,num-1);
-      break;
-  }
+  colorManipulate(rArray,num-1,option);
 
 
   generatePPMFile(option);
