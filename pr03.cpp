@@ -416,7 +416,24 @@ void readData(char* filePath, int* rArray, int& num)
 //************************************************************************************************
 int findInterval(float color, float* x, int n)
 {
-  
+  int i;
+  for(i=0;i<=n;i++)
+  {
+    if(color<x[i])
+      break;
+  }
+  return i-1;
+}
+
+void formXYPoints(float* x, float* y, int* rArray, int n)
+{
+  x[0]=0;
+  y[0]=rArray[0];
+  for(int i=0;i<=n;i++)
+  {
+    x[i]=x[i-1]+1/(float)(n);
+    y[i]=rArray[i];
+  }
 }
 
 int interpolateLinear(int color, float* x, float* y, int n)
@@ -426,13 +443,13 @@ int interpolateLinear(int color, float* x, float* y, int n)
   if(interval==n)
     return (int)y[n];
   float tVal = (colorVal-x[interval])/(x[interval+1]-x[interval]);
-  float output = (y[interval]*(1-tVal))+(y[interval+1]*t);
+  float output = (y[interval]*(1-tVal))+(y[interval+1]*tVal);
   cout<<output<<endl;
   if (output>255)
   {
     cout<<output<<endl;
     char c;
-    cin<<c;
+    cin>>c;
   }
   return (int)output;
 }
@@ -440,18 +457,18 @@ int interpolateLinear(int color, float* x, float* y, int n)
 void colorManipulate(int* rArray, int n)
 {
   int red,green,blue;
-  float x[1000],y[1000];
-  formXYPoints(x,y,rArray,n);
+  float xArray[1000],yArray[1000];
+  formXYPoints(xArray,yArray,rArray,n);
   for (int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
     {      
       int i = (y * width + x) * 3;
       red=pixmapOrig[i++];
-      red=interpolate(red,x,y,n);
+      int redNew=interpolateLinear(red,xArray,yArray,n);
       green=pixmapOrig[i++];
       blue=pixmapOrig[i];
-      setPixelColor(y,x,red,green,blue);
+      setPixelColor(y,x,redNew,green,blue);
     }
   }
 }
