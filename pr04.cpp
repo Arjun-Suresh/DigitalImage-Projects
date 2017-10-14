@@ -25,9 +25,9 @@
 #define COLORFOREGROUND 0
 #define COLORBACKGROUND 1
 
-#define REDOFFSET 0
+#define REDOFFSET 2
 #define GREENOFFSET 1
-#define BLUEOFFSET 2
+#define BLUEOFFSET 0
 
 using namespace std;
 // =============================================================================
@@ -318,11 +318,10 @@ bool readPPMFile(char* filePath, int option)
         pixmapControl = new unsigned char[widthControl*heightControl*3];
       if(!(fillPixelsBin(index, fileBuffer, numOfCharacters,option)))
         return false;
+      delete[] fileBuffer;
       return true;
     }
   }
-  delete[] fileBuffer;
-  return true;
 }
 
 
@@ -481,7 +480,7 @@ int* readData(char* filePath, int& m, int& n)
 
 
 //*****************************************************************************************************
-//*************************************Non-stationary filter functions******************************
+//*************************************Stationary filter functions******************************
 //*****************************************************************************************************
 
 void processKernelArray(int* kernelArray, double* processKernel, int m, int n)
@@ -513,16 +512,28 @@ int getDerivedValue(int i, int j, int colorOffset, int m, int n, double* process
   {
     for(int x=0;x<n;x++)
     {
-      int rowVal=(i-(n/2)+x)%width;
-      int colVal=(j-(m/2)+y)%height;
+      int rowVal=(i-(n/2)+x);
+      int colVal=(j-(m/2)+y);
+      if(rowVal<0)
+        rowVal+=width;
+      if(colVal<0)
+        colVal+=height;
+      //Boundary conditions
+      rowVal = rowVal % width;
+      colVal = colVal % height;
       int pixIndex = ((colVal*width+rowVal)*3)+colorOffset;
-      newColorValue += (processKernel[y*n+x] * pixmapOrig[pixIndex]);
-      if(maxColorInWindow < mod(newColorValue))
-        maxColorInWindow = mod(newColorValue);
+      newColorValue += (processKernel[y*n+x] * (double)pixmapOrig[pixIndex]);
+      if(maxColorInWindow < pixmapOrig[pixIndex])
+        maxColorInWindow = pixmapOrig[pixIndex];
      }
   }
-  newColorValue = (newColorValue+maxColorInWindow)/2*maxColorInWindow;
-  return (int)newColorValue;
+  if(!maxColorInWindow)
+    maxColorInWindow=1;
+  newColorValue = (newColorValue+maxColorInWindow)/(double)(2*maxColorInWindow);
+  if(newColorValue<=0.55)
+    return 0;
+  else
+    return 255;
 }
 
 void applyDerivativeFilter(int* kernelArray, int m, int n)
@@ -530,8 +541,6 @@ void applyDerivativeFilter(int* kernelArray, int m, int n)
   double* processKernel = new double[m*n];
   int redNew, greenNew, blueNew;
   processKernelArray(kernelArray, processKernel, m, n);
-  for(int i=0;i<(m*n);i++)
-  cout<<processKernel[i]<<" ";
   for(int j=0;j<height;j++)
   {
     for(int i=0;i<width;i++)
@@ -539,7 +548,11 @@ void applyDerivativeFilter(int* kernelArray, int m, int n)
       redNew = getDerivedValue(i,j,REDOFFSET, m, n, processKernel);
       greenNew = getDerivedValue(i,j,GREENOFFSET, m, n, processKernel);
       blueNew = getDerivedValue(i,j,BLUEOFFSET, m, n, processKernel);
-      setPixelColor(j,i,redNew,greenNew,blueNew);
+      //setPixelColor(j,i,redNew,greenNew,blueNew);
+      if(redNew || greenNew || blueNew)
+        setPixelColor(j,i,255,255,255);
+      else
+        setPixelColor(j,i,0,0,0);
     }
   }      
 }
