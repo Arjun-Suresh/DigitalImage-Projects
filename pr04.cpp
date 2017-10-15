@@ -29,6 +29,11 @@
 #define GREENOFFSET 1
 #define BLUEOFFSET 0
 
+
+#define maximum(x, y, z) ((x) > (y)? ((x) > (z)? (x) : (z)) : ((y) > (z)? (y) : (z)))
+#define minimum(x, y, z) ((x) < (y)? ((x) < (z)? (x) : (z)) : ((y) < (z)? (y) : (z)))
+
+
 using namespace std;
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
@@ -59,20 +64,9 @@ void setPixelColor(int y, int x, int red, int green, int blue)
   pixmapComputed[i] = blue;
 }
 
-void setPixelColorOrig(long int &val, long int& index, unsigned char* fileBuffer, int option)
+void setPixelColorOrig(long int &val, long int& index, unsigned char* fileBuffer)
 {
-  switch (option)
-  {
-    case 1:
-    case 2:
-      pixmapOrig[val++]=fileBuffer[index++];
-      break;
-    case 3:
-      pixmapControl[val++]=fileBuffer[index++];
-      break;
-    default:
-      return;
-  }
+  pixmapOrig[val++]=fileBuffer[index++];
 }
 // =============================================================================
 // OpenGL Display and Mouse Processing Functions.
@@ -163,7 +157,7 @@ bool parseMagicNumber(long int& index, unsigned char* fileBuffer, long int numOf
   return true;
 }
 
-bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharacters, int& parseValue, int valueId, int option)
+bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharacters, int& parseValue, int valueId)
 {
   int value;
   while(index<numOfCharacters)
@@ -206,16 +200,10 @@ bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharac
   switch(valueId)
   {
     case WIDTHVALUEID:
-      if(option<3)
       width=value;
-      else
-      widthControl=value;
       break;
     case HEIGHTVALUEID:
-      if(option<3)
       height=value;
-      else
-      heightControl=value;
       break;
     case MAXCOLORVALUEID:
       maxColorValue=value;
@@ -224,25 +212,17 @@ bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharac
   return true;
 }
 
-bool fillPixelsBin(long int& index, unsigned char* fileBuffer, long int numOfCharacters,int option)
+bool fillPixelsBin(long int& index, unsigned char* fileBuffer, long int numOfCharacters)
 {
   int wVal,hVal;
-  if(option<3)
-  {
-    wVal=width;
-    hVal=height;
-  }
-  else
-  {
-    wVal=widthControl;
-    hVal=heightControl;
-  }
+  wVal=width;
+  hVal=height;
   long int rowVal=0,colVal=0;
   while(rowVal<hVal)
   {
     long int val=(((hVal-rowVal-1)*wVal)+colVal)*3;
     for(int i=0;i<3;i++)
-    	setPixelColorOrig(val, index, fileBuffer, option);
+    	setPixelColorOrig(val, index, fileBuffer);
     colVal=(colVal+1)%wVal;
     if(!colVal)
       rowVal++;
@@ -250,7 +230,7 @@ bool fillPixelsBin(long int& index, unsigned char* fileBuffer, long int numOfCha
   return true;
 }
 
-bool readPPMFile(char* filePath, int option)
+bool readPPMFile(char* filePath)
 {
   std::fstream ppmFile;
   std::ifstream checkFile(filePath);
@@ -288,7 +268,7 @@ bool readPPMFile(char* filePath, int option)
     }
     if(magicNumberParsed && !widthParsed)
     {
-      if(!parseValue(index, fileBuffer, numOfCharacters, widthParsed, WIDTHVALUEID, option))
+      if(!parseValue(index, fileBuffer, numOfCharacters, widthParsed, WIDTHVALUEID))
       {
         return false;
       }
@@ -296,7 +276,7 @@ bool readPPMFile(char* filePath, int option)
     }
     if(magicNumberParsed && widthParsed && !heightParsed)
     {
-      if(!parseValue(index, fileBuffer, numOfCharacters, heightParsed, HEIGHTVALUEID, option))
+      if(!parseValue(index, fileBuffer, numOfCharacters, heightParsed, HEIGHTVALUEID))
       {
         return false;
       }
@@ -304,7 +284,7 @@ bool readPPMFile(char* filePath, int option)
     }
     if(magicNumberParsed && widthParsed && heightParsed && !maxColorValueParsed)
     {
-      if(!parseValue(index, fileBuffer, numOfCharacters, maxColorValueParsed, MAXCOLORVALUEID, option))
+      if(!parseValue(index, fileBuffer, numOfCharacters, maxColorValueParsed, MAXCOLORVALUEID))
       {
         return false;
       }
@@ -312,11 +292,8 @@ bool readPPMFile(char* filePath, int option)
     }
     if(magicNumberParsed && widthParsed && heightParsed && maxColorValueParsed)
     {
-      if( option < 3)
-        pixmapOrig = new unsigned char[width*height*3];
-      else
-        pixmapControl = new unsigned char[widthControl*heightControl*3];
-      if(!(fillPixelsBin(index, fileBuffer, numOfCharacters,option)))
+      pixmapOrig = new unsigned char[width*height*3];
+      if(!(fillPixelsBin(index, fileBuffer, numOfCharacters)))
         return false;
       delete[] fileBuffer;
       return true;
@@ -399,7 +376,13 @@ void generatePPMFile(int option)
       strcpy(fileName,"outputDerivative.ppm");
       break;
     case 3: 
-      strcpy(fileName,"outputMorphological.ppm");
+      strcpy(fileName,"outputDilationMorphological.ppm");
+      break;
+    case 4: 
+      strcpy(fileName,"outputErosionMorphological.ppm");
+      break;
+    case 5: 
+      strcpy(fileName,"outputErosionBlur.ppm");
       break;
   }
    
@@ -454,7 +437,6 @@ int* readData(char* filePath, int& m, int& n)
     else
       cArray[k++]=c;
   }
-  cout<<m<<" "<<n<<endl;
   int* kernel = new int[m*n];
   while(inputFile.get(c))
   {
@@ -548,7 +530,6 @@ void applyDerivativeFilter(int* kernelArray, int m, int n)
       redNew = getDerivedValue(i,j,REDOFFSET, m, n, processKernel);
       greenNew = getDerivedValue(i,j,GREENOFFSET, m, n, processKernel);
       blueNew = getDerivedValue(i,j,BLUEOFFSET, m, n, processKernel);
-      //setPixelColor(j,i,redNew,greenNew,blueNew);
       if(redNew || greenNew || blueNew)
         setPixelColor(j,i,255,255,255);
       else
@@ -557,18 +538,122 @@ void applyDerivativeFilter(int* kernelArray, int m, int n)
   }      
 }
 
+
+int getMorphologicalValue(int i, int j, int colorOffset, int m, int n, int* kernelArray, int option)
+{
+  int maxKernelVal=0, minKernelVal=999;
+  for(int y=0;y<m;y++)
+  {
+    for(int x=0;x<n;x++)
+    {
+      if(maxKernelVal<kernelArray[(y*n)+x])
+        maxKernelVal = kernelArray[(y*n)+x];
+      if(minKernelVal>kernelArray[(y*n)+x])
+        minKernelVal = kernelArray[(y*n)+x];
+    }
+  }
+  int maxValColor=0, minValColor=999;
+  for(int y=0;y<m;y++)
+  {
+    for(int x=0;x<n;x++)
+    {
+      int rowVal=(i-(n/2)+x);
+      int colVal=(j-(m/2)+y);
+      if(rowVal<0)
+        rowVal+=width;
+      if(colVal<0)
+        colVal+=height;
+      //Boundary conditions
+      rowVal = rowVal % width;
+      colVal = colVal % height;
+      int pixIndex = ((colVal*width+rowVal)*3)+colorOffset;
+      if(maxValColor<(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]))
+        maxValColor=(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]);
+      if(minValColor>(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]))
+        minValColor=(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]);
+    }
+  }
+  if(option == 3)
+    return maxValColor/maxKernelVal;
+  else
+  {
+    if(minKernelVal == 0)
+      return 0;
+    return minValColor/minKernelVal;
+  }
+}
+
+
+void applyMorphologicalFilter(int* kernelArray, int m, int n, int option)
+{
+  int redNew, greenNew, blueNew;
+  for(int j=0;j<height;j++)
+  {
+    for(int i=0;i<width;i++)
+    {
+      redNew = getMorphologicalValue(i,j,REDOFFSET, m, n, kernelArray, option);
+      greenNew = getMorphologicalValue(i,j,GREENOFFSET, m, n, kernelArray, option);
+      blueNew = getMorphologicalValue(i,j,BLUEOFFSET, m, n, kernelArray, option);
+      setPixelColor(j,i,blueNew,greenNew,redNew);
+    }
+  }            
+}
+
+
+int getBlurValue(int i, int j, int colorOffset, int m, int n, int* kernelArray)
+{
+  int output=0,sumKernel=0;
+  for(int y=0;y<m;y++)
+  {
+    for(int x=0;x<n;x++)
+    {
+      int rowVal=(i-(n/2)+x);
+      int colVal=(j-(m/2)+y);
+      if(rowVal<0)
+        rowVal+=width;
+      if(colVal<0)
+        colVal+=height;
+      //Boundary conditions
+      rowVal = rowVal % width;
+      colVal = colVal % height;
+      int pixIndex = ((colVal*width+rowVal)*3)+colorOffset;
+      output+=(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]);
+      sumKernel+=kernelArray[(y*n)+x];
+    }
+  }
+  return output/sumKernel;
+}
+
+
+void applyBlurFilter(int* kernelArray, int m, int n)
+{
+  int redNew, greenNew, blueNew;
+  for(int j=0;j<height;j++)
+  {
+    for(int i=0;i<width;i++)
+    {
+      redNew = getBlurValue(i,j,REDOFFSET, m, n, kernelArray);
+      greenNew = getBlurValue(i,j,GREENOFFSET, m, n, kernelArray);
+      blueNew = getBlurValue(i,j,BLUEOFFSET, m, n, kernelArray);
+      setPixelColor(j,i,blueNew,greenNew,redNew);
+    }
+  }
+}
+
 void applyFilter(int* kernelArray, int m, int n, int option)
 {
   switch(option)
   {
     case 1:
-      //applyBlurFilter(kernelArray, m, n);
+    case 5:
+      applyBlurFilter(kernelArray, m, n);
       break;
     case 2:
       applyDerivativeFilter(kernelArray, m, n);
       break;
     case 3:
-      //applyMorphologicalFilter(kernelArray, m, n);
+    case 4:
+      applyMorphologicalFilter(kernelArray, m, n,option);
       break;
   }
 }
@@ -579,23 +664,38 @@ void applyFilter(int* kernelArray, int m, int n, int option)
 int main(int argc, char *argv[])
 {
   int option;
-  cout<<"Enter options:\n1.Blur filter\n2.Derivative filter\n3.Morphological filter\n";
+  cout<<"Enter options:\n1.Blur filter\n2.Derivative filter\n3.Morphological Dilation filter\n4. Morphological Erosion filter\n5. Motion Blur\n";
   cin>>option;
-  
-  if(option<3)
+  int m=0,n=0, *kernelArray;
+  std::fstream inputFile;
+  int rArray[1000];
+  char filePath[100];
+  switch(option)
   {
-    int m=0,n=0, *kernelArray;
-    std::fstream inputFile;
-    int rArray[1000];
-    char filePath[100]="inputKernel.txt";
-    kernelArray=readData(filePath, m, n);
-    char inputPPMFile[100];
-    cout<<"Enter the ppm file to be manipulated\n";
-    cin>>inputPPMFile;
-    readPPMFile(inputPPMFile,1);
-    pixmapComputed = new unsigned char[width * height * 3];
-    applyFilter(kernelArray,m,n,option);
+    case 1:
+      strcpy(filePath, "inputBlur.txt");
+      break;
+    case 2:
+      strcpy(filePath, "inputDerivative.txt");
+      break;
+    case 3:
+      strcpy(filePath, "inputDilation.txt");
+      break;
+    case 4:
+      strcpy(filePath, "inputErosion.txt");
+      break;
+    case 5:
+      strcpy(filePath, "inputMotion.txt");
+      break;
   }
+    
+  kernelArray=readData(filePath, m, n);
+  char inputPPMFile[100];
+  cout<<"Enter the ppm file to be manipulated\n";
+  cin>>inputPPMFile;
+  readPPMFile(inputPPMFile);
+  pixmapComputed = new unsigned char[width * height * 3];
+  applyFilter(kernelArray,m,n,option);
   
   generatePPMFile(option);
 
