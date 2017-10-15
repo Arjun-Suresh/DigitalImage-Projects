@@ -2,9 +2,17 @@
 // VIZA654/CSCE646 at Texas A&M University
 // Homework 4
 // Basic filters with stationary kernels
-// For color manipulation, input is taken from txt file on the same folder
+// For kernels, input is taken from seperate txt file on the same folder
+// Box blur -> inputBlur.txt
+// Motion blur -> inputMotion.txt
+// Derivative -> inputDerivative.txt
+// Morphological dilation -> inputDilation.txt
+// MOrphological erosion -> inputErosion.txt
 // Data format in the txt file:
-// r0 r1 r2 r3 .... rn
+// #NumOfColumns #NumOfRows
+// k[0][0] k[0][1] ...... k[0][n-1]
+// ....
+// k[m-1][0] k[m-1][1] ..... k[m-1][n-1]
 // output files are generated in the same folder
 // =============================================================================
 
@@ -25,9 +33,9 @@
 #define COLORFOREGROUND 0
 #define COLORBACKGROUND 1
 
-#define REDOFFSET 2
+#define REDOFFSET 0
 #define GREENOFFSET 1
-#define BLUEOFFSET 0
+#define BLUEOFFSET 2
 
 
 #define maximum(x, y, z) ((x) > (y)? ((x) > (z)? (x) : (z)) : ((y) > (z)? (y) : (z)))
@@ -39,7 +47,7 @@ using namespace std;
 // These variables will store the input ppm image's width, height, and color
 // =============================================================================
 int width, height, maxColorValue, magicNo,widthControl, heightControl;
-unsigned char *pixmapOrig, *pixmapControl, *pixmapComputed;
+unsigned char *pixmapOrig, *pixmapComputed;
 
 inline double mod(double x) 
 {
@@ -400,7 +408,7 @@ void generatePPMFile(int option)
 
 
 //***********************************************************************************************
-//****************************Read data from txt file to get the curve points********************
+//****************************Read data from txt file to get the kernel array data********************
 //***********************************************************************************************
 int* readData(char* filePath, int& m, int& n)
 {
@@ -462,9 +470,12 @@ int* readData(char* filePath, int& m, int& n)
 
 
 //*****************************************************************************************************
-//*************************************Stationary filter functions******************************
+//*************************************Stationary filter functions*************************************
 //*****************************************************************************************************
 
+
+//**********************Derivative filter functions****************************************************
+//Modifying the kernel for derivative filters to get summation(Wxy) = 0
 void processKernelArray(int* kernelArray, double* processKernel, int m, int n)
 {
   double avgVal=0, normalizeAvg=0;
@@ -485,6 +496,7 @@ void processKernelArray(int* kernelArray, double* processKernel, int m, int n)
     for(int x=0;x<n;x++)
       processKernel[y*n+x] = processKernel[y*n+x]/normalizeAvg;
 }
+
 
 int getDerivedValue(int i, int j, int colorOffset, int m, int n, double* processKernel)
 {
@@ -512,6 +524,7 @@ int getDerivedValue(int i, int j, int colorOffset, int m, int n, double* process
   if(!maxColorInWindow)
     maxColorInWindow=1;
   newColorValue = (newColorValue+maxColorInWindow)/(double)(2*maxColorInWindow);
+  //To get an image purely in black and white with no greayscale
   if(newColorValue<=0.6)
     return 0;
   else
@@ -539,6 +552,7 @@ void applyDerivativeFilter(int* kernelArray, int m, int n)
 }
 
 
+//*********************************Morphological erosion and dilation functions************************
 int getMorphologicalValue(int i, int j, int colorOffset, int m, int n, int* kernelArray, int option)
 {
   int maxKernelVal=0, minKernelVal=999;
@@ -594,12 +608,13 @@ void applyMorphologicalFilter(int* kernelArray, int m, int n, int option)
       redNew = getMorphologicalValue(i,j,REDOFFSET, m, n, kernelArray, option);
       greenNew = getMorphologicalValue(i,j,GREENOFFSET, m, n, kernelArray, option);
       blueNew = getMorphologicalValue(i,j,BLUEOFFSET, m, n, kernelArray, option);
-      setPixelColor(j,i,blueNew,greenNew,redNew);
+      setPixelColor(j,i,redNew,greenNew,blueNew);
     }
   }            
 }
 
 
+//*****************************************Motion and box blur functions*******************
 int getBlurValue(int i, int j, int colorOffset, int m, int n, int* kernelArray)
 {
   int output=0,sumKernel=0;
@@ -635,11 +650,13 @@ void applyBlurFilter(int* kernelArray, int m, int n)
       redNew = getBlurValue(i,j,REDOFFSET, m, n, kernelArray);
       greenNew = getBlurValue(i,j,GREENOFFSET, m, n, kernelArray);
       blueNew = getBlurValue(i,j,BLUEOFFSET, m, n, kernelArray);
-      setPixelColor(j,i,blueNew,greenNew,redNew);
+      setPixelColor(j,i,redNew,greenNew,blueNew);
     }
   }
 }
 
+
+//********************************Main filter function**************************
 void applyFilter(int* kernelArray, int m, int n, int option)
 {
   switch(option)
@@ -657,6 +674,10 @@ void applyFilter(int* kernelArray, int m, int n, int option)
       break;
   }
 }
+
+
+
+
 
 // =============================================================================
 // main() Program Entry
@@ -704,7 +725,7 @@ int main(int argc, char *argv[])
   glutInitWindowPosition(100, 100); // Where the window will display on-screen.
   glutInitWindowSize(width, height);
   glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
-  glutCreateWindow("Homework Zero");
+  glutCreateWindow("Homework Four");
   init();
   glutReshapeFunc(windowResize);
   glutDisplayFunc(windowDisplay);
