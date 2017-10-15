@@ -382,7 +382,7 @@ void generatePPMFile(int option)
       strcpy(fileName,"outputErosionMorphological.ppm");
       break;
     case 5: 
-      strcpy(fileName,"outputErosionBlur.ppm");
+      strcpy(fileName,"outputMotionBlur.ppm");
       break;
   }
    
@@ -512,7 +512,7 @@ int getDerivedValue(int i, int j, int colorOffset, int m, int n, double* process
   if(!maxColorInWindow)
     maxColorInWindow=1;
   newColorValue = (newColorValue+maxColorInWindow)/(double)(2*maxColorInWindow);
-  if(newColorValue<=0.55)
+  if(newColorValue<=0.6)
     return 0;
   else
     return 255;
@@ -664,7 +664,7 @@ void applyFilter(int* kernelArray, int m, int n, int option)
 int main(int argc, char *argv[])
 {
   int option;
-  cout<<"Enter options:\n1.Blur filter\n2.Derivative filter\n3.Morphological Dilation filter\n4. Morphological Erosion filter\n5. Motion Blur\n";
+  cout<<"Enter options:\n1. Blur filter\n2. Derivative filter\n3. Morphological Dilation filter\n4. Morphological Erosion filter\n5. Motion Blur\n";
   cin>>option;
   int m=0,n=0, *kernelArray;
   std::fstream inputFile;
