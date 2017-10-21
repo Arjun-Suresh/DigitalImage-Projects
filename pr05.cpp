@@ -390,6 +390,7 @@ void generatePPMFile(int option)
   {
     case 1: 
       strcpy(fileName,"outputMotionBlur.ppm");
+      break;
     case 2: 
       strcpy(fileName,"outputDilationMorphological.ppm");
       break;
@@ -397,7 +398,6 @@ void generatePPMFile(int option)
       strcpy(fileName,"outputErosionMorphological.ppm");
       break;
   }
-   
   ppmFile.open(fileName,std::fstream::out);
   long int index=0;
   unsigned char* fileBuffer = new unsigned char[10000];
@@ -422,6 +422,61 @@ void getColorVals(int x, int y, int& rVal, int& gVal, int& bVal)
 }
 
 //*********************************Morphological erosion and dilation functions************************
+
+bool insideCircle(int x, int y, int xCenter, int yCenter, double radius)
+{
+  double xVal = pow((x-xCenter),2);
+  double yVal = pow((y-yCenter),2);
+  double compute = xVal/pow(radius,2) + yVal/pow(radius,2);
+  if(compute <= 1)
+    return true;
+  return false;
+}
+
+double getRadius(int rVal, int gVal, int xCenter, int yCenter)
+{
+  int xDiff = rVal - xCenter;
+  int yDiff = gVal - yCenter;
+  double h = pow ((pow(xDiff,2) + pow(yDiff,2)),0.5);
+  return h;
+}
+
+void createMorphologicalKernelArray(int* kernelArray, int m, int n, int i, int j)
+{
+  int xCenter = n/2;
+  int yCenter = m/2;
+  int redVal, greenVal, blueVal;
+  getColorVals(i, j, redVal, greenVal, blueVal);
+  redVal = (redVal * (n-1))/255;
+  greenVal = (greenVal * (m-1))/255;
+  if(redVal == xCenter && greenVal == yCenter)
+  {
+    for(int y=0; y<m; y++)
+    {
+      for(int x=0; x<n; x++)
+      {
+        kernelArray[y*n+x]=1;
+      }
+    }
+    kernelArray[yCenter*n+xCenter]=2;
+  }
+  else
+  {
+    double radius = getRadius(redVal, greenVal, xCenter, yCenter);
+    for(int y=0; y<m; y++)
+    {
+      for(int x=0; x<n; x++)
+      {
+        if(insideCircle(x,y,xCenter,yCenter,radius))
+          kernelArray[(m-y-1)*n+x]=2;
+        else
+          kernelArray[(m-y-1)*n+x]=1;
+      }
+    }
+  }
+}
+
+
 int getMorphologicalValue(int i, int j, int colorOffset, int m, int n, int* kernelArray, int option)
 {
   int maxKernelVal=0, minKernelVal=999;
@@ -456,7 +511,7 @@ int getMorphologicalValue(int i, int j, int colorOffset, int m, int n, int* kern
         minValColor=(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]);
     }
   }
-  if(option == 3)
+  if(option == 2)
     return maxValColor/maxKernelVal;
   else
   {
@@ -474,6 +529,7 @@ void applyMorphologicalFilter(int* kernelArray, int m, int n, int option)
   {
     for(int i=0;i<width;i++)
     {
+      createMorphologicalKernelArray(kernelArray,m,n,i,j);
       redNew = getMorphologicalValue(i,j,REDOFFSET, m, n, kernelArray, option);
       greenNew = getMorphologicalValue(i,j,GREENOFFSET, m, n, kernelArray, option);
       blueNew = getMorphologicalValue(i,j,BLUEOFFSET, m, n, kernelArray, option);
@@ -557,13 +613,13 @@ void createMotionKernelArray(int* kernelArray, int m, int n, int i, int j)
     {
       for(int x=0; x<n; x++)
       {
-        kernelArray[y*n+x]=1;
+        kernelArray[y*n+x]=0;
       }
     }
+    kernelArray[yCenter*n+xCenter]=1;
   }
   else
   {
-    int f=0;
     double theta = getAngle(redVal, greenVal, xCenter, yCenter);
     double bVal = getMinorAxis(blueVal, MAXVECTORFIELDSIZE/2);
     for(int y=0; y<m; y++)
@@ -630,6 +686,7 @@ void applyFilter(int* kernelArray, int m, int n, int option)
       applyBlurFilter(kernelArray, m, n);
       break;
     case 2:
+    case 3:
       applyMorphologicalFilter(kernelArray, m, n,option);
       break;
   }
@@ -647,7 +704,6 @@ int main(int argc, char *argv[])
   int option;
   cout<<"Enter options:\n1. Motion blur filter\n2. Morphological Dilation filter\n3. Morphological Erosion filter\n";
   cin>>option;
-
   char inputPPMFile[100], controlPPMFile[100];
   cout<<"Enter the ppm file to be manipulated\n";
   cin>>inputPPMFile;
@@ -660,7 +716,6 @@ int main(int argc, char *argv[])
 
   int * kernelArray = new int [KERNELNUMROWS*KERNELNUMCOLUMNS];
   applyFilter(kernelArray,KERNELNUMROWS,KERNELNUMCOLUMNS,option);
-  
   generatePPMFile(option);
 
 
