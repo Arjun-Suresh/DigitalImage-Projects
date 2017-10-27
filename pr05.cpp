@@ -26,9 +26,13 @@
 #define GREENOFFSET 1
 #define BLUEOFFSET 2
 
-#define KERNELNUMROWS 9
-#define KERNELNUMCOLUMNS 9
+#define KERNELNUMROWS 30
+#define KERNELNUMCOLUMNS 30
 #define MAXVECTORFIELDSIZE 3
+
+#define KERNELNUMROWSMORPH 10
+#define KERNELNUMCOLUMNSMORPH 10
+
 #define maximum(x, y, z) ((x) > (y)? ((x) > (z)? (x) : (z)) : ((y) > (z)? (y) : (z)))
 #define minimum(x, y, z) ((x) < (y)? ((x) < (z)? (x) : (z)) : ((y) < (z)? (y) : (z)))
 
@@ -455,10 +459,10 @@ void createMorphologicalKernelArray(int* kernelArray, int m, int n, int i, int j
     {
       for(int x=0; x<n; x++)
       {
-        kernelArray[y*n+x]=1;
+        kernelArray[y*n+x]=0;
       }
     }
-    kernelArray[yCenter*n+xCenter]=2;
+    kernelArray[yCenter*n+xCenter]=1;
   }
   else
   {
@@ -468,9 +472,9 @@ void createMorphologicalKernelArray(int* kernelArray, int m, int n, int i, int j
       for(int x=0; x<n; x++)
       {
         if(insideCircle(x,y,xCenter,yCenter,radius))
-          kernelArray[(m-y-1)*n+x]=2;
-        else
           kernelArray[(m-y-1)*n+x]=1;
+        else
+          kernelArray[(m-y-1)*n+x]=0;
       }
     }
   }
@@ -479,18 +483,29 @@ void createMorphologicalKernelArray(int* kernelArray, int m, int n, int i, int j
 
 int getMorphologicalValue(int i, int j, int colorOffset, int m, int n, int* kernelArray, int option)
 {
-  int maxKernelVal=0, minKernelVal=999;
+  double maxKernelVal=0.0, minKernelVal=999.0;
+  double* kernelArrayReal = new double[m*n];
   for(int y=0;y<m;y++)
   {
     for(int x=0;x<n;x++)
     {
-      if(maxKernelVal<kernelArray[(y*n)+x])
-        maxKernelVal = kernelArray[(y*n)+x];
-      if(minKernelVal>kernelArray[(y*n)+x])
-        minKernelVal = kernelArray[(y*n)+x];
+      if(kernelArray[(y*n)+x])
+        kernelArrayReal[(y*n)+x] = kernelArray[(y*n)+x];
+      else
+        kernelArrayReal[(y*n)+x] = 0.5;
     }
   }
-  int maxValColor=0, minValColor=999;
+  for(int y=0;y<m;y++)
+  {
+    for(int x=0;x<n;x++)
+    {
+      if(maxKernelVal<kernelArrayReal[(y*n)+x])
+        maxKernelVal = kernelArrayReal[(y*n)+x];
+      if(minKernelVal>kernelArrayReal[(y*n)+x])
+        minKernelVal = kernelArrayReal[(y*n)+x];
+    }
+  }
+  double maxValColor=0.0, minValColor=999.0;
   for(int y=0;y<m;y++)
   {
     for(int x=0;x<n;x++)
@@ -505,20 +520,17 @@ int getMorphologicalValue(int i, int j, int colorOffset, int m, int n, int* kern
       rowVal = rowVal % width;
       colVal = colVal % height;
       int pixIndex = ((colVal*width+rowVal)*3)+colorOffset;
-      if(maxValColor<(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]))
-        maxValColor=(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]);
-      if(minValColor>(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]))
-        minValColor=(kernelArray[(y*n)+x]*pixmapOrig[pixIndex]);
+      if(maxValColor<(kernelArrayReal[(y*n)+x]*(double)pixmapOrig[pixIndex]))
+        maxValColor=(kernelArrayReal[(y*n)+x]*(double)pixmapOrig[pixIndex]);
+      if(minValColor>(kernelArrayReal[(y*n)+x]*(double)pixmapOrig[pixIndex]))
+        minValColor=(kernelArrayReal[(y*n)+x]*(double)pixmapOrig[pixIndex]);
     }
   }
+  delete[] kernelArrayReal;
   if(option == 2)
-    return maxValColor/maxKernelVal;
-  else
-  {
-    if(minKernelVal == 0)
-      return 0;
-    return minValColor/minKernelVal;
-  }
+    return (int)(maxValColor/maxKernelVal);
+  else  
+    return (int)(minValColor/minKernelVal);
 }
 
 
@@ -678,16 +690,19 @@ void applyBlurFilter(int* kernelArray, int m, int n)
 
 
 //********************************Main filter function**************************
-void applyFilter(int* kernelArray, int m, int n, int option)
+void applyFilter(int option)
 {
+  int * kernelArray; 
   switch(option)
   {
     case 1:
-      applyBlurFilter(kernelArray, m, n);
+      kernelArray = new int [KERNELNUMROWS*KERNELNUMCOLUMNS];
+      applyBlurFilter(kernelArray, KERNELNUMROWS, KERNELNUMCOLUMNS);
       break;
     case 2:
     case 3:
-      applyMorphologicalFilter(kernelArray, m, n,option);
+      kernelArray = new int [KERNELNUMROWSMORPH*KERNELNUMCOLUMNSMORPH];
+      applyMorphologicalFilter(kernelArray, KERNELNUMROWSMORPH, KERNELNUMCOLUMNSMORPH,option);
       break;
   }
 }
@@ -714,8 +729,7 @@ int main(int argc, char *argv[])
   readPPMFile(controlPPMFile,2);
   pixmapComputed = new unsigned char[width * height * 3];
 
-  int * kernelArray = new int [KERNELNUMROWS*KERNELNUMCOLUMNS];
-  applyFilter(kernelArray,KERNELNUMROWS,KERNELNUMCOLUMNS,option);
+  applyFilter(option);
   generatePPMFile(option);
 
 
