@@ -783,7 +783,28 @@ void translation(int xTranslate,int yTranslate)
 }
 
 
+void getColorValues(int& red, int& green, int& blue, int x, int y)
+{
+  int output1 = (y*width+x)*3;
+  int output2,output3,output4,output5;
+  output2=output3=output4=output5=output1;
+  if(x<width-1)
+  {
+    output2= (y*width+(x+1))*3;
+    if(y<height-1)
+    output3= ((y+1)*width+(x+1))*3;
+  }
+  if(x>0)
+  {
+    output4= (y*width+(x-1))*3;
+    if(y>0)
+    output5= ((y-1)*width+(x-1))*3;
+  }
+  red=(pixmapComputed[output1++]+pixmapComputed[output2++]+pixmapComputed[output3++]+pixmapComputed[output4++]+pixmapComputed[output5++])/5;
+  green=(pixmapComputed[output1++]+pixmapComputed[output2++]+pixmapComputed[output3++]+pixmapComputed[output4++]+pixmapComputed[output5++])/5;
+  blue=(pixmapComputed[output1]+pixmapComputed[output2]+pixmapComputed[output3]+pixmapComputed[output4]+pixmapComputed[output5])/5;
 
+}
 
 
 void perspective(double xPerspective,double yPerspective)
@@ -814,10 +835,18 @@ void perspective(double xPerspective,double yPerspective)
       {
         int input = (y * width + x) * 3;
         int output = (yRes * width + xRes) * 3;
-        int red, green, blue;
         pixmapComputed[input++] = pixmapOrig[output++];
         pixmapComputed[input++] = pixmapOrig[output++];
         pixmapComputed[input] = pixmapOrig[output];
+      }
+      else
+      {
+        int red, green, blue;
+        int input = (y * width + x) * 3;
+        getColorValues(red, green, blue, x, y);
+        pixmapComputed[input++] = red;
+        pixmapComputed[input++] = green;
+        pixmapComputed[input] = blue;
       }
     }
   } 
