@@ -417,23 +417,230 @@ void generatePPMFile(int option)
 //*****************************************************************************************************
 //*************************************Stationary filter functions*************************************
 //*****************************************************************************************************
+bool verifyResult(int xRes, int yRes)
+{
+  if(xRes<width && xRes>=0 && yRes<height && yRes>=0)
+    return true;
+  return false;
+}
 
-void multiplyMatrix(int* pixelMatrix, int** transformation, int* resultMatrix)
+void initMatrix(double* pixelMatrix, int x, int y)
+{
+  pixelMatrix[0]=x;
+  pixelMatrix[1]=y;
+  pixelMatrix[2]=1;
+}
+
+void getValues(double* resultMatrix, int& x, int& y)
+{
+  x=(int)(resultMatrix[0]+0.5);
+  y=(int)(resultMatrix[1]+0.5);
+}
+
+void multiplyMatrix(double* pixelMatrix, double transformation[][3], double* resultMatrix)
 {
   for(int i=0;i<3;i++)
   {
     resultMatrix[i]=0;
     for(int j=0;j<3;j++)
+    {
       resultMatrix[i]+=(transformation[i][j]*pixelMatrix[j]);
+    }
   }
   for(int i=0;i<2;i++)
     resultMatrix[i] = resultMatrix[i]/resultMatrix[2];
 }
 
+
+
+
+void antiAliaseRotation(double t1[][3], double t2[][3], double theta, int xPivot, int yPivot)
+{
+  double rotationMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3],r1[3],r2[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+      if(i==2 || j==2)
+        rotationMatrix[i][j]=0;      
+    }
+  }
+  rotationMatrix[2][2]=1;
+  rotationMatrix[0][0]=cos(theta);
+  rotationMatrix[0][1]=sin(theta);
+  rotationMatrix[1][0]=(-1) * sin(theta);
+  rotationMatrix[1][1]=cos(theta);
+  
+  for(int y=height-1;y>=0;y--)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int input = ((height-y-1) * width + x) * 3;
+      if(pixmapComputed[input] == 0 && pixmapComputed[input+1] == 0 && pixmapComputed[input+2] == 0)
+      {
+        initMatrix(pixelMatrix,x,height-y);
+        multiplyMatrix(pixelMatrix, t1, r1);
+        multiplyMatrix(r1, rotationMatrix, r2);
+        multiplyMatrix(r2, t2, resultMatrix);
+        int xRes, yRes;
+        getValues(resultMatrix,xRes,yRes);
+        if(verifyResult(xRes,yRes))
+        { 
+          int output = (yRes * width + xRes) * 3; 
+          pixmapComputed[input++] = pixmapOrig[output++];
+          pixmapComputed[input++] = pixmapOrig[output++];
+          pixmapComputed[input] = pixmapOrig[output];
+        }
+      }
+    }
+  }
+}
 void rotation(int angle,int xPivot,int yPivot)
 {
+  double theta = ((double)angle*3.1416)/180.0;
+  double rotationMatrix[3][3], translationMatrix1[3][3], translationMatrix2[3][3];
+  double pixelMatrix[3],resultMatrix[3],r1[3],r2[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+      translationMatrix1[i][j]=0;
+      translationMatrix2[i][j]=0;
+      if(i==2 || j==2)
+        rotationMatrix[i][j]=0;      
+    }
+    translationMatrix1[i][i]=1;
+    translationMatrix2[i][i]=1;    
+  }
 
+  rotationMatrix[2][2]=1;
+  rotationMatrix[0][0]=cos(theta);
+  rotationMatrix[0][1]=(-1) * sin(theta);
+  rotationMatrix[1][0]=sin(theta);
+  rotationMatrix[1][1]=cos(theta);
+  translationMatrix1[0][2]=xPivot;
+  translationMatrix2[0][2]=-xPivot;
+  translationMatrix1[1][2]=yPivot;
+  translationMatrix2[1][2]=-yPivot;
+
+  for(int y=height-1;y>=0;y--)
+  {
+    for(int x=0;x<width;x++)
+    {
+      initMatrix(pixelMatrix,x,height-y);
+      multiplyMatrix(pixelMatrix, translationMatrix1, r1);
+      multiplyMatrix(r1, rotationMatrix, r2);
+      multiplyMatrix(r2, translationMatrix2, resultMatrix);
+      int xRes, yRes;
+      getValues(resultMatrix,xRes,yRes);
+      if(verifyResult(xRes,yRes))
+      {
+        int input = ((height-y) * width + x) * 3;
+        int output = (yRes * width + xRes) * 3; 
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output] = pixmapOrig[input];
+      }
+    }
+  }   
+  antiAliaseRotation(translationMatrix1, translationMatrix2, theta, xPivot, yPivot);
 }
+
+
+
+void antiAliaseRotation(double t1[][3], double t2[][3], double theta, int xPivot, int yPivot)
+{
+  double rotationMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3],r1[3],r2[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+      if(i==2 || j==2)
+        rotationMatrix[i][j]=0;      
+    }
+  }
+  rotationMatrix[2][2]=1;
+  rotationMatrix[0][0]=cos(theta);
+  rotationMatrix[0][1]=sin(theta);
+  rotationMatrix[1][0]=(-1) * sin(theta);
+  rotationMatrix[1][1]=cos(theta);
+  
+  for(int y=height-1;y>=0;y--)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int input = ((height-y-1) * width + x) * 3;
+      if(pixmapComputed[input] == 0 && pixmapComputed[input+1] == 0 && pixmapComputed[input+2] == 0)
+      {
+        initMatrix(pixelMatrix,x,height-y);
+        multiplyMatrix(pixelMatrix, t1, r1);
+        multiplyMatrix(r1, rotationMatrix, r2);
+        multiplyMatrix(r2, t2, resultMatrix);
+        int xRes, yRes;
+        getValues(resultMatrix,xRes,yRes);
+        if(verifyResult(xRes,yRes))
+        { 
+          int output = (yRes * width + xRes) * 3; 
+          pixmapComputed[input++] = pixmapOrig[output++];
+          pixmapComputed[input++] = pixmapOrig[output++];
+          pixmapComputed[input] = pixmapOrig[output];
+        }
+      }
+    }
+  }
+}
+void rotation(int angle,int xPivot,int yPivot)
+{
+  double theta = ((double)angle*3.1416)/180.0;
+  double rotationMatrix[3][3], translationMatrix1[3][3], translationMatrix2[3][3];
+  double pixelMatrix[3],resultMatrix[3],r1[3],r2[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+      translationMatrix1[i][j]=0;
+      translationMatrix2[i][j]=0;
+      if(i==2 || j==2)
+        rotationMatrix[i][j]=0;      
+    }
+    translationMatrix1[i][i]=1;
+    translationMatrix2[i][i]=1;    
+  }
+
+  rotationMatrix[2][2]=1;
+  rotationMatrix[0][0]=cos(theta);
+  rotationMatrix[0][1]=(-1) * sin(theta);
+  rotationMatrix[1][0]=sin(theta);
+  rotationMatrix[1][1]=cos(theta);
+  translationMatrix1[0][2]=xPivot;
+  translationMatrix2[0][2]=-xPivot;
+  translationMatrix1[1][2]=yPivot;
+  translationMatrix2[1][2]=-yPivot;
+
+  for(int y=height-1;y>=0;y--)
+  {
+    for(int x=0;x<width;x++)
+    {
+      initMatrix(pixelMatrix,x,height-y);
+      multiplyMatrix(pixelMatrix, translationMatrix1, r1);
+      multiplyMatrix(r1, rotationMatrix, r2);
+      multiplyMatrix(r2, translationMatrix2, resultMatrix);
+      int xRes, yRes;
+      getValues(resultMatrix,xRes,yRes);
+      if(verifyResult(xRes,yRes))
+      {
+        int input = ((height-y) * width + x) * 3;
+        int output = (yRes * width + xRes) * 3; 
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output] = pixmapOrig[input];
+      }
+    }
+  }   
+  antiAliaseRotation(translationMatrix1, translationMatrix2, theta, xPivot, yPivot);
+
 void scaling(int xScale,int yScale)
 {
 
@@ -489,10 +696,10 @@ void applyTransformation(int option)
   {
     case 1:
     int angle, xPivot, yPivot;
-    cout<<"Enter the angle of rotation\n";
+    cout<<"Enter the angle of rotation in degrees\n";
     cin>>angle;
     cout<<"Consider the image space with respect to origin (0,0) as:\n";
-    cout<<"(0,"<<height<<")\t\t\t("<<width<<","<<height<<")\n(0,0)\t\t\t("<<width<<",0)\n";
+    cout<<"(0,"<<height<<")\t\t\t("<<width<<","<<height<<")\n\n\n(0,0)\t\t\t("<<width<<",0)\n";
     cout<<"Enter the x and y pivot values with respect to origin (0,0)\n";
     cin>>xPivot>>yPivot;
     rotation(angle,xPivot,yPivot);
@@ -530,6 +737,21 @@ void applyTransformation(int option)
   }
 }
 
+
+void initOutputPixMap()
+{
+  for(int y=0;y<height;y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int i=(y*width+x)*3;
+      pixmapComputed[i++]=0;
+      pixmapComputed[i++]=0;
+      pixmapComputed[i]=0;
+    }
+  }
+}
+
 // =============================================================================
 // main() Program Entry
 // =============================================================================
@@ -540,7 +762,7 @@ int main(int argc, char *argv[])
   cin>>inputPPMFile;
   readPPMFile(inputPPMFile,1);
   pixmapComputed = new unsigned char[width * height * 3];
-
+  initOutputPixMap();
 
   int option;
   cout<<"Enter options:\n1. Rotation\n2. Scaling\n3. Shearing\n4. Mirror\n5. Translation\n6. Perspective\n";
