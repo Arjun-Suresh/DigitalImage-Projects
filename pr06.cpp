@@ -26,6 +26,7 @@
 #define GREENOFFSET 1
 #define BLUEOFFSET 2
 
+
 #define maximum(x, y, z) ((x) > (y)? ((x) > (z)? (x) : (z)) : ((y) > (z)? (y) : (z)))
 #define minimum(x, y, z) ((x) < (y)? ((x) < (z)? (x) : (z)) : ((y) < (z)? (y) : (z)))
 
@@ -417,6 +418,7 @@ void generatePPMFile(int option)
 //*****************************************************************************************************
 //*************************************Stationary filter functions*************************************
 //*****************************************************************************************************
+
 bool verifyResult(int xRes, int yRes)
 {
   if(xRes<width && xRes>=0 && yRes<height && yRes>=0)
@@ -472,14 +474,14 @@ void antiAliaseRotation(double t1[][3], double t2[][3], double theta, int xPivot
   rotationMatrix[1][0]=(-1) * sin(theta);
   rotationMatrix[1][1]=cos(theta);
   
-  for(int y=height-1;y>=0;y--)
+  for(int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
     {
-      int input = ((height-y-1) * width + x) * 3;
+      int input = (y * width + x) * 3;
       if(pixmapComputed[input] == 0 && pixmapComputed[input+1] == 0 && pixmapComputed[input+2] == 0)
       {
-        initMatrix(pixelMatrix,x,height-y-1);
+        initMatrix(pixelMatrix,x,y);
         multiplyMatrix(pixelMatrix, t1, r1);
         multiplyMatrix(r1, rotationMatrix, r2);
         multiplyMatrix(r2, t2, resultMatrix);
@@ -487,7 +489,7 @@ void antiAliaseRotation(double t1[][3], double t2[][3], double theta, int xPivot
         getValues(resultMatrix,xRes,yRes);
         if(verifyResult(xRes,yRes))
         { 
-          int output = (yRes * width + xRes) * 3; 
+          int output = (yRes*width + xRes)*3;
           pixmapComputed[input++] = pixmapOrig[output++];
           pixmapComputed[input++] = pixmapOrig[output++];
           pixmapComputed[input] = pixmapOrig[output];
@@ -524,11 +526,11 @@ void rotation(int angle,int xPivot,int yPivot)
   translationMatrix1[1][2]=yPivot;
   translationMatrix2[1][2]=-yPivot;
 
-  for(int y=height-1;y>=0;y--)
+  for(int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
     {
-      initMatrix(pixelMatrix,x,height-y-1);
+      initMatrix(pixelMatrix,x,y);
       multiplyMatrix(pixelMatrix, translationMatrix1, r1);
       multiplyMatrix(r1, rotationMatrix, r2);
       multiplyMatrix(r2, translationMatrix2, resultMatrix);
@@ -536,8 +538,8 @@ void rotation(int angle,int xPivot,int yPivot)
       getValues(resultMatrix,xRes,yRes);
       if(verifyResult(xRes,yRes))
       {
-        int input = ((height-y-1) * width + x) * 3;
-        int output = (yRes * width + xRes) * 3; 
+        int output = (yRes * width + xRes) * 3;
+        int input = (y*width + x) * 3;
         pixmapComputed[output++] = pixmapOrig[input++];
         pixmapComputed[output++] = pixmapOrig[input++];
         pixmapComputed[output] = pixmapOrig[input];
@@ -565,14 +567,14 @@ void antiAliaseScaling(double xScale, double yScale)
   scalingMatrix[2][2]=1;
   scalingMatrix[0][0]=1/(double)xScale;
   scalingMatrix[1][1]=1/(double)yScale;
-  for(int y=height-1;y>=0;y--)
+  for(int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
     {
-      int input = ((height-y-1) * width + x) * 3;
+      int input = (y * width + x) * 3;
       if(pixmapComputed[input] == 0 && pixmapComputed[input+1] == 0 && pixmapComputed[input+2] == 0)
       {
-        initMatrix(pixelMatrix,x,height-y-1);
+        initMatrix(pixelMatrix,x,y);
         multiplyMatrix(pixelMatrix, scalingMatrix, resultMatrix);
         int xRes, yRes;
         getValues(resultMatrix,xRes,yRes);
@@ -605,17 +607,17 @@ void scaling(double xScale,double yScale)
   scalingMatrix[0][0]=xScale;
   scalingMatrix[1][1]=yScale;
 
-  for(int y=height-1;y>=0;y--)
+  for(int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
     {
-      initMatrix(pixelMatrix,x,height-y-1);
+      initMatrix(pixelMatrix,x,y);
       multiplyMatrix(pixelMatrix, scalingMatrix, resultMatrix);
       int xRes, yRes;
       getValues(resultMatrix,xRes,yRes);
       if(verifyResult(xRes,yRes))
       {
-        int input = ((height-y-1) * width + x) * 3;
+        int input = (y * width + x) * 3;
         int output = (yRes * width + xRes) * 3; 
         pixmapComputed[output++] = pixmapOrig[input++];
         pixmapComputed[output++] = pixmapOrig[input++];
@@ -647,14 +649,14 @@ void antiAliaseShearing(double xShear, double yShear)
   shearingMatrix[0][1]=(-1*xShear);
   shearingMatrix[1][0]=(-1*yShear);
 
-  for(int y=height-1;y>=0;y--)
+  for(int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
     {
-      int input = ((height-y-1) * width + x) * 3;
+      int input = (y * width + x) * 3;
       if(pixmapComputed[input] == 0 && pixmapComputed[input+1] == 0 && pixmapComputed[input+2] == 0)
       {
-        initMatrix(pixelMatrix,x,height-y-1);
+        initMatrix(pixelMatrix,x,y);
         multiplyMatrix(pixelMatrix, shearingMatrix, resultMatrix);
         int xRes, yRes;
         getValues(resultMatrix,xRes,yRes);
@@ -687,17 +689,17 @@ void shearing(double xShear,double yShear)
   shearingMatrix[0][1]=xShear;
   shearingMatrix[1][0]=yShear;
 
-  for(int y=height-1;y>=0;y--)
+  for(int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
     {
-      initMatrix(pixelMatrix,x,height-y-1);
+      initMatrix(pixelMatrix,x,y);
       multiplyMatrix(pixelMatrix, shearingMatrix, resultMatrix);
       int xRes, yRes;
       getValues(resultMatrix,xRes,yRes);
       if(verifyResult(xRes,yRes))
       {
-        int input = ((height-y-1) * width + x) * 3;
+        int input = (y * width + x) * 3;
         int output = (yRes * width + xRes) * 3; 
         pixmapComputed[output++] = pixmapOrig[input++];
         pixmapComputed[output++] = pixmapOrig[input++];
@@ -760,17 +762,17 @@ void translation(int xTranslate,int yTranslate)
   translationMatrix[0][2]=xTranslate;
   translationMatrix[1][2]=yTranslate;
 
-  for(int y=height-1;y>=0;y--)
+  for(int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
     {
-      initMatrix(pixelMatrix,x,height-y-1);
+      initMatrix(pixelMatrix,x,y);
       multiplyMatrix(pixelMatrix, translationMatrix, resultMatrix);
       int xRes, yRes;
       getValues(resultMatrix,xRes,yRes);
       if(verifyResult(xRes,yRes))
       {
-        int input = ((height-y-1) * width + x) * 3;
+        int input = (y * width + x) * 3;
         int output = (yRes * width + xRes) * 3; 
         pixmapComputed[output++] = pixmapOrig[input++];
         pixmapComputed[output++] = pixmapOrig[input++];
@@ -782,10 +784,48 @@ void translation(int xTranslate,int yTranslate)
 
 
 
-void perspective(int xPerspective,int yPerspective)
-{
 
+
+void perspective(double xPerspective,double yPerspective)
+{
+  double perspectiveMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3],r1[3],r2[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+      perspectiveMatrix[i][j]=0;
+    }
+    perspectiveMatrix[i][i]=1;   
+  }
+  perspectiveMatrix[2][0]=(-1)*xPerspective/(width*10);
+  perspectiveMatrix[2][1]=(-1)*yPerspective/(height*10);
+  
+  for(int y=0;y<height;y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      
+      initMatrix(pixelMatrix,x,y);
+      multiplyMatrix(pixelMatrix, perspectiveMatrix, resultMatrix);
+      int xRes, yRes;
+      getValues(resultMatrix,xRes,yRes);
+      if(verifyResult(xRes,yRes))
+      {
+        int input = (y * width + x) * 3;
+        int output = (yRes * width + xRes) * 3;
+        int red, green, blue;
+        pixmapComputed[input++] = pixmapOrig[output++];
+        pixmapComputed[input++] = pixmapOrig[output++];
+        pixmapComputed[input] = pixmapOrig[output];
+      }
+    }
+  } 
 }
+
+
+
+
 void applyTransformation(int option)
 {
   switch(option)
@@ -825,7 +865,7 @@ void applyTransformation(int option)
     translation(xTranslate,yTranslate);
     break;
     case 6:
-    int xPerspective, yPerspective;
+    double xPerspective, yPerspective;
     cout<<"Enter the x and y perspective values\n";
     cin>>xPerspective>>yPerspective;
     perspective(xPerspective,yPerspective);
@@ -848,6 +888,30 @@ void initOutputPixMap()
   }
 }
 
+void swap(int& a, int& b)
+{
+  int t;
+  t=a;
+  a=b;
+  b=t;
+}
+
+void reconfigureInputPixMap()
+{
+  for(int y=0;y<height;y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int i=(y*width+x)*3;
+      int old = ((height-y-1)*width+x)*3;
+      swap(pixmapOrig[i++],pixmapOrig[old++]);
+      swap(pixmapOrig[i++],pixmapOrig[old++]);
+      swap(pixmapOrig[i],pixmapOrig[old]);
+    }
+  }
+}
+
+
 // =============================================================================
 // main() Program Entry
 // =============================================================================
@@ -859,6 +923,7 @@ int main(int argc, char *argv[])
   readPPMFile(inputPPMFile,1);
   pixmapComputed = new unsigned char[width * height * 3];
   initOutputPixMap();
+  reconfigureInputPixMap();
 
   int option;
   cout<<"Enter options:\n1. Rotation\n2. Scaling\n3. Shearing\n4. Mirror\n5. Translation\n6. Perspective\n";
