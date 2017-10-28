@@ -549,24 +549,22 @@ void rotation(int angle,int xPivot,int yPivot)
 
 
 
-void antiAliaseRotation(double t1[][3], double t2[][3], double theta, int xPivot, int yPivot)
+
+void antiAliaseScaling(int xScale, int yScale)
 {
-  double rotationMatrix[3][3];
-  double pixelMatrix[3],resultMatrix[3],r1[3],r2[3];
+  double scalingMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3];
   for(int i=0;i<3;i++)
   {
     for(int j=0;j<3;j++)
     {
-      if(i==2 || j==2)
-        rotationMatrix[i][j]=0;      
+        scalingMatrix[i][j]=0;      
     }
   }
-  rotationMatrix[2][2]=1;
-  rotationMatrix[0][0]=cos(theta);
-  rotationMatrix[0][1]=sin(theta);
-  rotationMatrix[1][0]=(-1) * sin(theta);
-  rotationMatrix[1][1]=cos(theta);
-  
+
+  scalingMatrix[2][2]=1;
+  scalingMatrix[0][0]=1/(double)xScale;
+  scalingMatrix[1][1]=1/(double)yScale;
   for(int y=height-1;y>=0;y--)
   {
     for(int x=0;x<width;x++)
@@ -575,9 +573,7 @@ void antiAliaseRotation(double t1[][3], double t2[][3], double theta, int xPivot
       if(pixmapComputed[input] == 0 && pixmapComputed[input+1] == 0 && pixmapComputed[input+2] == 0)
       {
         initMatrix(pixelMatrix,x,height-y);
-        multiplyMatrix(pixelMatrix, t1, r1);
-        multiplyMatrix(r1, rotationMatrix, r2);
-        multiplyMatrix(r2, t2, resultMatrix);
+        multiplyMatrix(pixelMatrix, scalingMatrix, resultMatrix);
         int xRes, yRes;
         getValues(resultMatrix,xRes,yRes);
         if(verifyResult(xRes,yRes))
@@ -591,42 +587,30 @@ void antiAliaseRotation(double t1[][3], double t2[][3], double theta, int xPivot
     }
   }
 }
-void rotation(int angle,int xPivot,int yPivot)
+
+
+void scaling(double xScale,double yScale)
 {
-  double theta = ((double)angle*3.1416)/180.0;
-  double rotationMatrix[3][3], translationMatrix1[3][3], translationMatrix2[3][3];
-  double pixelMatrix[3],resultMatrix[3],r1[3],r2[3];
+  double scalingMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3];
   for(int i=0;i<3;i++)
   {
     for(int j=0;j<3;j++)
     {
-      translationMatrix1[i][j]=0;
-      translationMatrix2[i][j]=0;
-      if(i==2 || j==2)
-        rotationMatrix[i][j]=0;      
+        scalingMatrix[i][j]=0;      
     }
-    translationMatrix1[i][i]=1;
-    translationMatrix2[i][i]=1;    
   }
 
-  rotationMatrix[2][2]=1;
-  rotationMatrix[0][0]=cos(theta);
-  rotationMatrix[0][1]=(-1) * sin(theta);
-  rotationMatrix[1][0]=sin(theta);
-  rotationMatrix[1][1]=cos(theta);
-  translationMatrix1[0][2]=xPivot;
-  translationMatrix2[0][2]=-xPivot;
-  translationMatrix1[1][2]=yPivot;
-  translationMatrix2[1][2]=-yPivot;
+  scalingMatrix[2][2]=1;
+  scalingMatrix[0][0]=xScale;
+  scalingMatrix[1][1]=yScale;
 
   for(int y=height-1;y>=0;y--)
   {
     for(int x=0;x<width;x++)
     {
       initMatrix(pixelMatrix,x,height-y);
-      multiplyMatrix(pixelMatrix, translationMatrix1, r1);
-      multiplyMatrix(r1, rotationMatrix, r2);
-      multiplyMatrix(r2, translationMatrix2, resultMatrix);
+      multiplyMatrix(pixelMatrix, scalingMatrix, resultMatrix);
       int xRes, yRes;
       getValues(resultMatrix,xRes,yRes);
       if(verifyResult(xRes,yRes))
@@ -639,10 +623,7 @@ void rotation(int angle,int xPivot,int yPivot)
       }
     }
   }   
-  antiAliaseRotation(translationMatrix1, translationMatrix2, theta, xPivot, yPivot);
-
-void scaling(int xScale,int yScale)
-{
+  antiAliaseScaling(xScale, yScale);
 
 }
 
@@ -650,6 +631,7 @@ void shearing(int xShear,int yShear)
 {
 
 }
+
 
 
 
@@ -681,6 +663,10 @@ void mirror(int mirrorOption)
     }
   }
 }
+
+
+
+
 void translation(int xTranslate,int yTranslate)
 {
 
@@ -705,13 +691,13 @@ void applyTransformation(int option)
     rotation(angle,xPivot,yPivot);
     break;
     case 2:
-    int xScale, yScale;
+    double xScale, yScale;
     cout<<"Enter the x and y scale values\n";
     cin>>xScale>>yScale;
     scaling(xScale,yScale);
     break;
     case 3:
-    int xShear, yShear;
+    double xShear, yShear;
     cout<<"Enter the x and y shear values\n";
     cin>>xShear>>yShear;
     shearing(xShear,yShear);
