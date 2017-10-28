@@ -479,7 +479,7 @@ void antiAliaseRotation(double t1[][3], double t2[][3], double theta, int xPivot
       int input = ((height-y-1) * width + x) * 3;
       if(pixmapComputed[input] == 0 && pixmapComputed[input+1] == 0 && pixmapComputed[input+2] == 0)
       {
-        initMatrix(pixelMatrix,x,height-y);
+        initMatrix(pixelMatrix,x,height-y-1);
         multiplyMatrix(pixelMatrix, t1, r1);
         multiplyMatrix(r1, rotationMatrix, r2);
         multiplyMatrix(r2, t2, resultMatrix);
@@ -528,7 +528,7 @@ void rotation(int angle,int xPivot,int yPivot)
   {
     for(int x=0;x<width;x++)
     {
-      initMatrix(pixelMatrix,x,height-y);
+      initMatrix(pixelMatrix,x,height-y-1);
       multiplyMatrix(pixelMatrix, translationMatrix1, r1);
       multiplyMatrix(r1, rotationMatrix, r2);
       multiplyMatrix(r2, translationMatrix2, resultMatrix);
@@ -536,7 +536,7 @@ void rotation(int angle,int xPivot,int yPivot)
       getValues(resultMatrix,xRes,yRes);
       if(verifyResult(xRes,yRes))
       {
-        int input = ((height-y) * width + x) * 3;
+        int input = ((height-y-1) * width + x) * 3;
         int output = (yRes * width + xRes) * 3; 
         pixmapComputed[output++] = pixmapOrig[input++];
         pixmapComputed[output++] = pixmapOrig[input++];
@@ -550,7 +550,7 @@ void rotation(int angle,int xPivot,int yPivot)
 
 
 
-void antiAliaseScaling(int xScale, int yScale)
+void antiAliaseScaling(double xScale, double yScale)
 {
   double scalingMatrix[3][3];
   double pixelMatrix[3],resultMatrix[3];
@@ -572,7 +572,7 @@ void antiAliaseScaling(int xScale, int yScale)
       int input = ((height-y-1) * width + x) * 3;
       if(pixmapComputed[input] == 0 && pixmapComputed[input+1] == 0 && pixmapComputed[input+2] == 0)
       {
-        initMatrix(pixelMatrix,x,height-y);
+        initMatrix(pixelMatrix,x,height-y-1);
         multiplyMatrix(pixelMatrix, scalingMatrix, resultMatrix);
         int xRes, yRes;
         getValues(resultMatrix,xRes,yRes);
@@ -609,13 +609,13 @@ void scaling(double xScale,double yScale)
   {
     for(int x=0;x<width;x++)
     {
-      initMatrix(pixelMatrix,x,height-y);
+      initMatrix(pixelMatrix,x,height-y-1);
       multiplyMatrix(pixelMatrix, scalingMatrix, resultMatrix);
       int xRes, yRes;
       getValues(resultMatrix,xRes,yRes);
       if(verifyResult(xRes,yRes))
       {
-        int input = ((height-y) * width + x) * 3;
+        int input = ((height-y-1) * width + x) * 3;
         int output = (yRes * width + xRes) * 3; 
         pixmapComputed[output++] = pixmapOrig[input++];
         pixmapComputed[output++] = pixmapOrig[input++];
@@ -627,10 +627,87 @@ void scaling(double xScale,double yScale)
 
 }
 
-void shearing(int xShear,int yShear)
-{
 
+
+
+void antiAliaseShearing(double xShear, double yShear)
+{
+  double shearingMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+        shearingMatrix[i][j]=0;      
+    }
+    shearingMatrix[i][i]=1;
+  }
+  
+  shearingMatrix[2][2]=(double)(1-xShear*yShear);
+  shearingMatrix[0][1]=(-1*xShear);
+  shearingMatrix[1][0]=(-1*yShear);
+
+  for(int y=height-1;y>=0;y--)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int input = ((height-y-1) * width + x) * 3;
+      if(pixmapComputed[input] == 0 && pixmapComputed[input+1] == 0 && pixmapComputed[input+2] == 0)
+      {
+        initMatrix(pixelMatrix,x,height-y-1);
+        multiplyMatrix(pixelMatrix, shearingMatrix, resultMatrix);
+        int xRes, yRes;
+        getValues(resultMatrix,xRes,yRes);
+        if(verifyResult(xRes,yRes))
+        { 
+          int output = (yRes * width + xRes) * 3; 
+          pixmapComputed[input++] = pixmapOrig[output++];
+          pixmapComputed[input++] = pixmapOrig[output++];
+          pixmapComputed[input] = pixmapOrig[output];
+        }
+      }
+    }
+  }
 }
+
+
+void shearing(double xShear,double yShear)
+{
+  double shearingMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+        shearingMatrix[i][j]=0;      
+    }
+    shearingMatrix[i][i]=1;
+  }
+
+  shearingMatrix[0][1]=xShear;
+  shearingMatrix[1][0]=yShear;
+
+  for(int y=height-1;y>=0;y--)
+  {
+    for(int x=0;x<width;x++)
+    {
+      initMatrix(pixelMatrix,x,height-y-1);
+      multiplyMatrix(pixelMatrix, shearingMatrix, resultMatrix);
+      int xRes, yRes;
+      getValues(resultMatrix,xRes,yRes);
+      if(verifyResult(xRes,yRes))
+      {
+        int input = ((height-y-1) * width + x) * 3;
+        int output = (yRes * width + xRes) * 3; 
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output] = pixmapOrig[input];
+      }
+    }
+  }   
+  antiAliaseShearing(xShear, yShear);
+}
+
 
 
 
@@ -669,8 +746,41 @@ void mirror(int mirrorOption)
 
 void translation(int xTranslate,int yTranslate)
 {
+  double translationMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3],r1[3],r2[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+      translationMatrix[i][j]=0;
+    }
+    translationMatrix[i][i]=1;   
+  }
 
+  translationMatrix[0][2]=xTranslate;
+  translationMatrix[1][2]=yTranslate;
+
+  for(int y=height-1;y>=0;y--)
+  {
+    for(int x=0;x<width;x++)
+    {
+      initMatrix(pixelMatrix,x,height-y-1);
+      multiplyMatrix(pixelMatrix, translationMatrix, resultMatrix);
+      int xRes, yRes;
+      getValues(resultMatrix,xRes,yRes);
+      if(verifyResult(xRes,yRes))
+      {
+        int input = ((height-y-1) * width + x) * 3;
+        int output = (yRes * width + xRes) * 3; 
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output] = pixmapOrig[input];
+      }
+    }
+  }   
 }
+
+
 
 void perspective(int xPerspective,int yPerspective)
 {
