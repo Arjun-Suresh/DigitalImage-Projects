@@ -883,7 +883,7 @@ void applyTransformation(int option)
     break;
     case 4:
     int mirrorOption;
-    cout<<"Enter:\n1. Mirror along x\n2. Mirror long y\n";
+    cout<<"Enter:\n1. Mirror along y\n2. Mirror along x\n";
     cin>>mirrorOption;
     mirror(mirrorOption);
     break;
