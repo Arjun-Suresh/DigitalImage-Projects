@@ -1,7 +1,7 @@
 // =============================================================================
 // VIZA654/CSCE646 at Texas A&M University
-// Homework 5
-// Filters with non-stationary kernels
+// Homework 7
+// Warp transformations - Bilinear warp, Inverse warp using complex numbers and sine warp
 // output files are generated in the same folder
 // =============================================================================
 
@@ -410,6 +410,7 @@ void generatePPMFile(int option)
 //*************************************Warp functions**************************************************
 //*****************************************************************************************************
 
+//Check if values withi the image bounds
 bool verifyResult(int xRes, int yRes)
 {
   if(xRes<width && xRes>=0 && yRes<height && yRes>=0)
@@ -417,6 +418,7 @@ bool verifyResult(int xRes, int yRes)
   return false;
 }
 
+//Check if values is between 0 and 1. This is used for u and v values in bilinear warping
 bool checkRange(double val)
 {
   if(0<=val && val<=1)
@@ -425,6 +427,7 @@ bool checkRange(double val)
     return false;
 }
 
+//The following 4 functions are used only to get the boundary points of the bilinear warped image
 void initMatrix(double* pixelMatrix, int x, int y)
 {
   pixelMatrix[0]=x;
@@ -453,33 +456,6 @@ void multiplyMatrix(double* pixelMatrix, double transformation[][3], double* res
 }
 
 
-
-
-
-void getColorValues(int& red, int& green, int& blue, int x, int y)
-{
-  int output1 = (y*width+x)*3;
-  int output2,output3,output4,output5;
-  output2=output3=output4=output5=output1;
-  if(x<width-1)
-  {
-    output2= (y*width+(x+1))*3;
-    if(y<height-1)
-    output3= ((y+1)*width+(x+1))*3;
-  }
-  if(x>0)
-  {
-    output4= (y*width+(x-1))*3;
-    if(y>0)
-    output5= ((y-1)*width+(x-1))*3;
-  }
-  red=(pixmapComputed[output1++]+pixmapComputed[output2++]+pixmapComputed[output3++]+pixmapComputed[output4++]+pixmapComputed[output5++])/5;
-  green=(pixmapComputed[output1++]+pixmapComputed[output2++]+pixmapComputed[output3++]+pixmapComputed[output4++]+pixmapComputed[output5++])/5;
-  blue=(pixmapComputed[output1]+pixmapComputed[output2]+pixmapComputed[output3]+pixmapComputed[output4]+pixmapComputed[output5])/5;
-
-}
-
-
 void getBoundaryPoints(double xPerspective,double yPerspective, int xVal, int yVal, int& resXVal, int& resYVal)
 {
   double perspectiveMatrix[3][3];
@@ -498,6 +474,13 @@ void getBoundaryPoints(double xPerspective,double yPerspective, int xVal, int yV
   multiplyMatrix(pixelMatrix, perspectiveMatrix, resultMatrix);
   getValues(resultMatrix,resXVal,resYVal);
 }
+
+
+//The boundary points (x0,y0), (x1,y1), (x2,y2), (x3,y3) for the output of bilinear warp
+//are obtained using inverse persepective transformation for the points from the input image
+//(0,0), (0,height-1), (width-1,height-1), (width-1,0). After that the rest of the points are obtained
+//using the formula and notations borrowed from the text book, "The digital image" by Donald House
+//For best results, please try with a large input image and xPerspective and/or yPerspective values both >= 8
 
 void getInverseBilinearWarp(int* x,int* y,int xVal,int yVal,int& xRes,int& yRes)
 {
@@ -570,6 +553,7 @@ void bilinearWarp(double xPerspective, double yPerspective)
   }
 }
 
+//Inverse warp functions
 double getTheta(int x, int y)
 {
   if(x==0)
@@ -592,6 +576,13 @@ void getNewComplexNumbers(double r, double theta, int& xRes, int& yRes)
   yRes = r*sin(theta);
 }
 
+//For inverse warp 1, the forward transformation I am using is x'+iy' = pow((x+iy),1.2)
+//Here, theta' and r' is calculated for the output image from the x' and y' values
+//Then the x and y values are calcuated using inverse mapping r = pow(r',(1/1.2)) and theta = theta'/1.2
+//I tried the standard x'+iy'  = pow((x+iy),2), but this was not giving good results for the landscape images I had.
+
+//For sine warp, the forward transformation is x' = x and y' = 5*sin(x/10).
+//The corresponding inverse transformation is: x = x' and y = y' - 5*sin(x'/10)
 void inverseWarp(int flag)
 {
   for(int yVal=0;yVal<height-1;yVal++)
@@ -694,7 +685,7 @@ int main(int argc, char *argv[])
   reconfigureInputPixMap();
 
   int option;
-  cout<<"Enter options:\n1. Bilinear warp\n2. Inverse warp\n3. Sine warp\n";
+  cout<<"Enter options:\n1. Bilinear warp\n2. Inverse warp\n3. Inverse sine warp\n";
   cin>>option;
 
   applyTransformation(option);
@@ -706,7 +697,7 @@ int main(int argc, char *argv[])
   glutInitWindowPosition(100, 100); // Where the window will display on-screen.
   glutInitWindowSize(width, height);
   glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
-  glutCreateWindow("Homework Four");
+  glutCreateWindow("Homework Seven");
   init();
   glutReshapeFunc(windowResize);
   glutDisplayFunc(windowDisplay);
