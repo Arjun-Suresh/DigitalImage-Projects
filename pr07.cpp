@@ -392,6 +392,9 @@ void generatePPMFile(int option)
     case 2: 
       strcpy(fileName,"outputInverse.ppm");
       break;
+    case 3:
+      strcpy(fileName,"outputSineWarp.ppm");
+      break;
   }
   ppmFile.open(fileName,std::fstream::out);
   long int index=0;
@@ -577,6 +580,48 @@ double getTheta(int x, int y)
   if(cosVal > 0 && sineVal < 0)
     theta+=(2*3.1416);
   else if(cosVal < 0 && sineVal < 0) 
+    theta+=3.1416;
+  else if(cosVal <  0 && sineVal > 0)
+    theta+=3.1416;
+  return theta;
+}
+
+void getNewComplexNumbers(double r, double theta, int& xRes, int& yRes)
+{
+  xRes = r*cos(theta);
+  yRes = r*sin(theta);
+}
+
+void inverseWarp(int flag)
+{
+  for(int yVal=0;yVal<height-1;yVal++)
+  {
+    for(int xVal=0;xVal<width-1;xVal++)
+    {
+      int xRes, yRes;
+      if(!flag)
+      {
+        double theta = getTheta(xVal,yVal);
+        double r = pow((pow(xVal,2)+pow(yVal,2)),0.5);
+        getNewComplexNumbers(pow(r,(1/1.2)),theta/1.2, xRes, yRes);
+      }
+      else
+      {
+        xRes = xVal;
+        yRes = (int)(yVal-(double)5*sin((double)xVal/10));
+      }
+      if(verifyResult(xRes,yRes))
+      {
+        int input = (yRes * width + xRes) * 3;
+        int output = (yVal*width + xVal) * 3;
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output++] = pixmapOrig[input++];
+        pixmapComputed[output] = pixmapOrig[input];
+      }
+    }
+  }
+}
+
 void applyTransformation(int option)
 {
   switch(option)
@@ -588,7 +633,10 @@ void applyTransformation(int option)
     bilinearWarp(xPerspective,yPerspective);
     break;
     case 2:
-    swirlWarp();
+    inverseWarp(0);
+    break;
+    case 3:
+    inverseWarp(1);
     break;
   }
 }
@@ -646,7 +694,7 @@ int main(int argc, char *argv[])
   reconfigureInputPixMap();
 
   int option;
-  cout<<"Enter options:\n1. Bilinear warp\n2. Swirl warp\n";
+  cout<<"Enter options:\n1. Bilinear warp\n2. Inverse warp\n3. Sine warp\n";
   cin>>option;
 
   applyTransformation(option);
