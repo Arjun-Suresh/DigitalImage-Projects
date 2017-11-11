@@ -30,6 +30,9 @@
 #define maximum(x, y, z) ((x) > (y)? ((x) > (z)? (x) : (z)) : ((y) > (z)? (y) : (z)))
 #define minimum(x, y, z) ((x) < (y)? ((x) < (z)? (x) : (z)) : ((y) < (z)? (y) : (z)))
 
+#define diff(a,b) ((a>b)?(a-b):(b-a))
+
+#define KERNELSIZE 10
 
 using namespace std;
 // =============================================================================
@@ -427,7 +430,7 @@ void readAllPPMFiles(int option)
   {
     strcpy(foregroundPPMFile,"foreground.ppm");
     strcpy(backgroundPPMFile,"background.ppm");
-    strcpy(backgroundPPMFile,"Trimap.ppm");
+    strcpy(trimapFile,"Trimap.ppm");
     readPPMFile(backgroundPPMFile,1);
     readPPMFile(foregroundPPMFile,2);
     readPPMFile(trimapFile,3);
@@ -440,22 +443,24 @@ void readAllPPMFiles(int option)
 //************************************************************************************************************
 double compute(int color1, int color2, int option)
 {
+  double c1 = (double)color1/255.0;
+  double c2 = (double)color2/255.0;
   switch(option)
   {
     case 1:
       return (double)color2;
       break;
     case 2:
-      return (double)(color2*color1);
+      return c2*c1*255.0;
       break;
     case 3:
-      return (double)(color2-color1);
+      return (c2>c1)?((c2-c1)*255):(0);
       break;
     case 4:
-      return (double)((color2>color1)?(color2):(color1));
+      return (c2>c1)?(c2*255.0):(c1*255.0);
       break;
     case 5:
-      return (double)((color2<color1)?(color2):(color1));
+      return (c2<c1)?(c2*255.0):(c1*255.0);
       break;
   }
 }
@@ -483,15 +488,166 @@ void applyCompositingOver(double alpha1, double alpha2, int option)
       red1 = pixmapBackGround[iVal+1];
       green1 = pixmapBackGround[iVal+2];
       blue1 = pixmapBackGround[iVal+3];
-      pixmapComputed[iVal++]=(int)(a2*compute(blue1,blue2,option)+(1.0-a2)*(double)blue1*a1);
-      pixmapComputed[iVal++]=(int)(a2*compute(red1,red2,option)+(1.0-a2)*(double)red1*a1);
-      pixmapComputed[iVal]=(int)(a2*compute(green1,green2,option)+(1.0-a2)*(double)green1*a1);
+      pixmapComputed[iVal++]=(int)((a2*compute(blue1,blue2,option)+(1.0-a2)*(double)blue1*a1)/(a2+(1-a2)*a1));
+      pixmapComputed[iVal++]=(int)((a2*compute(red1,red2,option)+(1.0-a2)*(double)red1*a1)/(a2+(1-a2)*a1));
+      pixmapComputed[iVal]=(int)((a2*compute(green1,green2,option)+(1.0-a2)*(double)green1*a1)/(a2+(1-a2)*a1));
     }
   }      
 }
+
+void fillKernel(double x,double y,double kernel[KERNELSIZE][KERNELSIZE])
+{
+  for(int i=0;i<KERNELSIZE;i++)
+  {
+    for(int j=0;j<KERNELSIZE;j++)
+    {
+      int rowVal=(i-(KERNELSIZE/2)+x);
+      int colVal=(j-(KERNELSIZE/2)+y);
+      if(rowVal<0)
+        rowVal+=width;
+      if(colVal<0)
+        colVal+=height;
+      //Boundary conditions
+      rowVal = rowVal % width;
+      colVal = colVal % height;
+      int pixIndex = ((colVal*width+rowVal)*3);
+      kernel[i][j]=(double)pixmapTriMap[pixIndex]/255.0;
+    }
+  } 
+}
+
+double checkKernel(double kernel[KERNELSIZE][KERNELSIZE])
+{
+  int val=0;
+  for(int i=0;i<KERNELSIZE;i++)
+  {
+    for(int j=0;j<KERNELSIZE;j++)
+    {
+      if(kernel[i][j] < 1 && kernel[i][j]>0)
+        return 0.5;
+      val+=kernel[i][j];
+    }
+  }
+  if(val)
+    return 1.0;
+  else
+    return 0;
+}
+
+void getColors(double& red, double& green, double& blue, int x, int y, double kernel[KERNELSIZE][KERNELSIZE], int option)
+{
+  int totalRedColorVal=0, totalGreenColorVal=0, totalBlueColorVal=0;
+  int totalNums=0;
+  int kernelValCheck;
+  unsigned char* pixmapCheck;
+  if(option == COLORBACKGROUND)
+  {
+    kernelValCheck=0;
+    pixmapCheck=pixmapBackGround;
+  }
+  else
+  {
+    kernelValCheck=1;
+    pixmapCheck=pixmapForeGround;
+  }
+  for(int i=0;i<KERNELSIZE;i++)
+  {
+    for(int j=0;j<KERNELSIZE;j++)
+    {
+      if(kernel[i][j] == kernelValCheck)
+      {
+        int rowVal=(i-(KERNELSIZE/2)+x);
+        int colVal=(j-(KERNELSIZE/2)+y);
+        if(rowVal<0)
+          rowVal+=width;
+        if(colVal<0)
+          colVal+=height;
+        //Boundary conditions
+        rowVal = rowVal % width;
+        colVal = colVal % height;
+        int pixIndex = ((colVal*width+rowVal)*3);
+        totalRedColorVal+=pixmapCheck[pixIndex++];
+        totalGreenColorVal+=pixmapCheck[pixIndex++];
+        totalBlueColorVal+=pixmapCheck[pixIndex];
+        totalNums++;
+      }
+    }
+  }
+  red = (double)totalRedColorVal/(double)totalNums;  
+  green = (double)totalGreenColorVal/(double)totalNums;  
+  blue = (double)totalBlueColorVal/(double)totalNums;
+}
+double getColorVal(int offset, int x, int y, double kernel[KERNELSIZE][KERNELSIZE])
+{
+  int totalColorVal=0;
+  int totalNums=0;
+  for(int i=0;i<KERNELSIZE;i++)
+  {
+    for(int j=0;j<KERNELSIZE;j++)
+    {
+      int rowVal=(i-(KERNELSIZE/2)+x);
+      int colVal=(j-(KERNELSIZE/2)+y);
+      if(rowVal<0)
+        rowVal+=width;
+      if(colVal<0)
+        colVal+=height;
+      //Boundary conditions
+      rowVal = rowVal % width;
+      colVal = colVal % height;
+      int pixIndex = ((colVal*width+rowVal)*3)+offset;
+      unsigned char* pixmapCheck;
+      if(kernel[i][j]<1)
+        pixmapCheck = pixmapBackGround;
+      else
+        pixmapCheck = pixmapForeGround;
+      totalColorVal+=pixmapCheck[pixIndex];
+      totalNums++;
+    }
+  }
+  return (double)totalColorVal/(double)totalNums; 
+}
+double findAlpha(int x, int y)
+{
+  double kernel[KERNELSIZE][KERNELSIZE];
+  fillKernel(x,y,kernel);
+  double val = checkKernel(kernel);
+  if(val == 0)
+    return 0;
+  if(val == 1)
+    return 1.0;
+  double redBack, redFore, greenBack, greenFore, blueBack, blueFore;
+  getColors(redBack, greenBack, blueBack, x, y, kernel, COLORBACKGROUND);
+  getColors(redFore, greenFore, blueFore, x, y, kernel, COLORFOREGROUND);
+  if(diff(redBack,redFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(redBack,redFore))
+    return (getColorVal(REDOFFSET,x,y,kernel)-redBack)/(redFore-redBack);
+  else if(diff(greenBack,greenFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(greenBack,greenFore))
+    return (getColorVal(GREENOFFSET,x,y,kernel)-greenBack)/(greenFore-greenBack);
+  else if(diff(blueBack,blueFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(blueBack,blueFore))
+    return (getColorVal(BLUEOFFSET,x,y,kernel)-blueBack)/(blueFore-blueBack);
+  else
+    return 1.0;    
+}
+
 void applyScreening()
 {
-  
+  for(int y=0;y<height;y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int iVal = (y * width + x) * 3; 
+      double alpha;
+      alpha = findAlpha(x,y);
+      int red2 = pixmapForeGround[iVal+1];
+      int green2 = pixmapForeGround[iVal+2];
+      int blue2 = pixmapForeGround[iVal+3];
+      int red1 = pixmapBackGround[iVal+1];
+      int green1 = pixmapBackGround[iVal+2];
+      int blue1 = pixmapBackGround[iVal+3];
+      pixmapComputed[iVal++]=(int)(alpha*blue2+(1.0-alpha)*(double)blue1);
+      pixmapComputed[iVal++]=(int)(alpha*red2+(1.0-alpha)*(double)red1);
+      pixmapComputed[iVal]=(int)(alpha*green2+(1.0-alpha)*(double)green1);
+    }
+  }      
 }
 void applyCompositing(int option)
 {
