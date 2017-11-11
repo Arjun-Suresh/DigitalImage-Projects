@@ -32,7 +32,7 @@
 
 #define diff(a,b) ((a>b)?(a-b):(b-a))
 
-#define KERNELSIZE 10
+#define KERNELSIZE 20
 
 using namespace std;
 // =============================================================================
@@ -536,8 +536,8 @@ double checkKernel(double kernel[KERNELSIZE][KERNELSIZE])
 
 void getColors(double& red, double& green, double& blue, int x, int y, double kernel[KERNELSIZE][KERNELSIZE], int option)
 {
-  int totalRedColorVal=0, totalGreenColorVal=0, totalBlueColorVal=0;
-  int totalNums=0;
+  long int totalRedColorVal=0, totalGreenColorVal=0, totalBlueColorVal=0;
+  long int totalNums=0;
   int kernelValCheck;
   unsigned char* pixmapCheck;
   if(option == COLORBACKGROUND)
@@ -573,14 +573,21 @@ void getColors(double& red, double& green, double& blue, int x, int y, double ke
       }
     }
   }
-  red = (double)totalRedColorVal/(double)totalNums;  
-  green = (double)totalGreenColorVal/(double)totalNums;  
-  blue = (double)totalBlueColorVal/(double)totalNums;
+  if(!totalNums)
+  {
+    red=green=blue=255.0;
+  }
+  else
+  {
+    red = (double)totalRedColorVal/(double)totalNums;  
+    green = (double)totalGreenColorVal/(double)totalNums;  
+    blue = (double)totalBlueColorVal/(double)totalNums;
+  }
 }
 double getColorVal(int offset, int x, int y, double kernel[KERNELSIZE][KERNELSIZE])
 {
-  int totalColorVal=0;
-  int totalNums=0;
+  long int totalColorVal=0;
+  long int totalNums=0;
   for(int i=0;i<KERNELSIZE;i++)
   {
     for(int j=0;j<KERNELSIZE;j++)
@@ -596,12 +603,8 @@ double getColorVal(int offset, int x, int y, double kernel[KERNELSIZE][KERNELSIZ
       colVal = colVal % height;
       int pixIndex = ((colVal*width+rowVal)*3)+offset;
       unsigned char* pixmapCheck;
-      if(kernel[i][j]<1)
-        pixmapCheck = pixmapBackGround;
-      else
-        pixmapCheck = pixmapForeGround;
-      totalColorVal+=pixmapCheck[pixIndex];
-      totalNums++;
+      totalColorVal+=(pixmapBackGround[pixIndex]+pixmapForeGround[pixIndex]);
+      totalNums+=2;
     }
   }
   return (double)totalColorVal/(double)totalNums; 
@@ -618,6 +621,7 @@ double findAlpha(int x, int y)
   double redBack, redFore, greenBack, greenFore, blueBack, blueFore;
   getColors(redBack, greenBack, blueBack, x, y, kernel, COLORBACKGROUND);
   getColors(redFore, greenFore, blueFore, x, y, kernel, COLORFOREGROUND);
+  //cout<<greenFore<<" "<<redFore<<" "<<blueFore<<endl;
   if(diff(redBack,redFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(redBack,redFore))
     return (getColorVal(REDOFFSET,x,y,kernel)-redBack)/(redFore-redBack);
   else if(diff(greenBack,greenFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(greenBack,greenFore))
