@@ -32,7 +32,7 @@
 
 #define diff(a,b) ((a>b)?(a-b):(b-a))
 
-#define KERNELSIZE 20
+#define KERNELSIZE 25
 
 using namespace std;
 // =============================================================================
@@ -327,7 +327,9 @@ bool readPPMFile(char* filePath, int option)
 void fillCharacters(unsigned char* fileBuffer, long int& index, char* data)
 {
   for(int i=0;i<strlen(data);i++)
+  {
     fileBuffer[index++]=data[i];
+  }
 }
 
 void writeToFile(unsigned char* fileBuffer, long int numberOfCharacters, fstream& ppmFile)
@@ -504,14 +506,19 @@ void fillKernel(double x,double y,double kernel[KERNELSIZE][KERNELSIZE])
       int rowVal=(i-(KERNELSIZE/2)+x);
       int colVal=(j-(KERNELSIZE/2)+y);
       if(rowVal<0)
-        rowVal+=width;
+        rowVal=0;
       if(colVal<0)
-        colVal+=height;
-      //Boundary conditions
-      rowVal = rowVal % width;
-      colVal = colVal % height;
+        colVal=0;
+      if(rowVal>width-1)
+        rowVal=width-1;
+      if(colVal>height-1)
+        colVal=height-1;
       int pixIndex = ((colVal*width+rowVal)*3);
       kernel[i][j]=(double)pixmapTriMap[pixIndex]/255.0;
+      if(kernel[i][j]<0.48)
+        kernel[i][j]=0;
+      else if(kernel[i][j]>=0.8)
+        kernel[i][j]=1;
     }
   } 
 }
@@ -559,12 +566,13 @@ void getColors(double& red, double& green, double& blue, int x, int y, double ke
         int rowVal=(i-(KERNELSIZE/2)+x);
         int colVal=(j-(KERNELSIZE/2)+y);
         if(rowVal<0)
-          rowVal+=width;
-        if(colVal<0)
-          colVal+=height;
-        //Boundary conditions
-        rowVal = rowVal % width;
-        colVal = colVal % height;
+        rowVal=0;
+      if(colVal<0)
+        colVal=0;
+      if(rowVal>width-1)
+        rowVal=width-1;
+      if(colVal>height-1)
+        colVal=height-1;
         int pixIndex = ((colVal*width+rowVal)*3);
         totalRedColorVal+=pixmapCheck[pixIndex++];
         totalGreenColorVal+=pixmapCheck[pixIndex++];
@@ -586,7 +594,7 @@ void getColors(double& red, double& green, double& blue, int x, int y, double ke
 }
 double getColorVal(int offset, int x, int y, double kernel[KERNELSIZE][KERNELSIZE])
 {
-  long int totalColorVal=0;
+  double totalColorVal=0;
   long int totalNums=0;
   for(int i=0;i<KERNELSIZE;i++)
   {
@@ -595,19 +603,20 @@ double getColorVal(int offset, int x, int y, double kernel[KERNELSIZE][KERNELSIZ
       int rowVal=(i-(KERNELSIZE/2)+x);
       int colVal=(j-(KERNELSIZE/2)+y);
       if(rowVal<0)
-        rowVal+=width;
+        rowVal=0;
       if(colVal<0)
-        colVal+=height;
-      //Boundary conditions
-      rowVal = rowVal % width;
-      colVal = colVal % height;
+        colVal=0;
+      if(rowVal>width-1)
+        rowVal=width-1;
+      if(colVal>height-1)
+        colVal=height-1;
       int pixIndex = ((colVal*width+rowVal)*3)+offset;
       unsigned char* pixmapCheck;
-      totalColorVal+=(pixmapBackGround[pixIndex]+pixmapForeGround[pixIndex]);
-      totalNums+=2;
+      totalColorVal+=(pixmapForeGround[pixIndex]*kernel[i][j]+pixmapBackGround[pixIndex]*(1-kernel[i][j]));
+      totalNums++;
     }
   }
-  return (double)totalColorVal/(double)totalNums; 
+  return totalColorVal/(double)totalNums; 
 }
 double findAlpha(int x, int y)
 {
@@ -624,10 +633,12 @@ double findAlpha(int x, int y)
   //cout<<greenFore<<" "<<redFore<<" "<<blueFore<<endl;
   if(diff(redBack,redFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(redBack,redFore))
     return (getColorVal(REDOFFSET,x,y,kernel)-redBack)/(redFore-redBack);
+    //return 0;
   else if(diff(greenBack,greenFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(greenBack,greenFore))
     return (getColorVal(GREENOFFSET,x,y,kernel)-greenBack)/(greenFore-greenBack);
   else if(diff(blueBack,blueFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(blueBack,blueFore))
     return (getColorVal(BLUEOFFSET,x,y,kernel)-blueBack)/(blueFore-blueBack);
+    //return 0;
   else
     return 1.0;    
 }
