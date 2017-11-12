@@ -1,7 +1,9 @@
 // =============================================================================
 // VIZA654/CSCE646 at Texas A&M University
-// Homework 7
-// Warp transformations - Bilinear warp, Inverse warp using complex numbers and sine warp
+// Homework 8
+// Compositing
+// 1. Normal, multiply, max, min
+// 2. Chroma key compositing using over operator and median of weighted averages
 // output files are generated in the same folder
 // =============================================================================
 
@@ -443,6 +445,8 @@ void readAllPPMFiles(int option)
 //************************************************************************************************************
 //*************************************Compositing functions**************************************************
 //************************************************************************************************************
+
+//Functions for Part 1 of the project 
 double compute(int color1, int color2, int option)
 {
   double c1 = (double)color1/255.0;
@@ -466,6 +470,7 @@ double compute(int color1, int color2, int option)
       break;
   }
 }
+
 void applyCompositingOver(double alpha1, double alpha2, int option)
 {
   int red1,red2,blue1,blue2,green1,green2;
@@ -497,6 +502,12 @@ void applyCompositingOver(double alpha1, double alpha2, int option)
   }      
 }
 
+
+//Functions for part 2 of the project
+
+//Initiallizing the kernel for every image pixel.
+//The kernel value is 0 if trimap value<=0.48, 0.5 for trimap values between 0.48 and 0.8 and 1 for values >=0.8
+//This was required because the brush tool used while creating the grey trimap seems to be using a blur filter
 void fillKernel(double x,double y,double kernel[KERNELSIZE][KERNELSIZE])
 {
   for(int i=0;i<KERNELSIZE;i++)
@@ -525,6 +536,7 @@ void fillKernel(double x,double y,double kernel[KERNELSIZE][KERNELSIZE])
   } 
 }
 
+//Check if the zone in trimap is foreground (1), boundary (0.5) or background (0)
 double checkKernel(double kernel[KERNELSIZE][KERNELSIZE])
 {
   int val=0;
@@ -543,8 +555,7 @@ double checkKernel(double kernel[KERNELSIZE][KERNELSIZE])
     return 0;
 }
 
-
-
+//Get the foreground and background colors
 void getColors(double& red, double& green, double& blue, int x, int y, double kernel[KERNELSIZE][KERNELSIZE], int option)
 {
   long int totalRedColorVal=0, totalGreenColorVal=0, totalBlueColorVal=0;
@@ -597,6 +608,7 @@ void getColors(double& red, double& green, double& blue, int x, int y, double ke
   }
 }
 
+//Calculates the median of values after sorting the color values
 double getMedian(double* arr, int n)
 {
   int i,j;
@@ -619,6 +631,7 @@ double getMedian(double* arr, int n)
   return arr[n/2];;
 }
 
+//Get the resultant color value by taking median of the weighted average values of foreground and background colors
 double getColorVal(int offset, int x, int y, double kernel[KERNELSIZE][KERNELSIZE])
 {
   double totalColorVal=0;
@@ -646,6 +659,8 @@ double getColorVal(int offset, int x, int y, double kernel[KERNELSIZE][KERNELSIZ
   }
   return getMedian(arr,count); 
 }
+
+
 double findAlpha(int x, int y)
 {
   double kernel[KERNELSIZE][KERNELSIZE];
