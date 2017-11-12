@@ -32,8 +32,8 @@
 
 #define diff(a,b) ((a>b)?(a-b):(b-a))
 
-#define KERNELSIZE 25
-
+#define KERNELSIZE 2
+#define KERNELARRAYSIZE 4
 using namespace std;
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
@@ -519,6 +519,8 @@ void fillKernel(double x,double y,double kernel[KERNELSIZE][KERNELSIZE])
         kernel[i][j]=0;
       else if(kernel[i][j]>=0.8)
         kernel[i][j]=1;
+      else
+        kernel[i][j]=0.5; 
     }
   } 
 }
@@ -540,6 +542,8 @@ double checkKernel(double kernel[KERNELSIZE][KERNELSIZE])
   else
     return 0;
 }
+
+
 
 void getColors(double& red, double& green, double& blue, int x, int y, double kernel[KERNELSIZE][KERNELSIZE], int option)
 {
@@ -592,10 +596,35 @@ void getColors(double& red, double& green, double& blue, int x, int y, double ke
     blue = (double)totalBlueColorVal/(double)totalNums;
   }
 }
+
+double getMedian(double* arr, int n)
+{
+  int i,j;
+  for(i=0;i<n;i++)
+  {
+    double min=arr[i];
+    int minIndex=i;
+    for(j=i+1;j<n;j++)
+    {
+      if(min>arr[j])
+      {
+        min=arr[j];
+        minIndex=j;
+      }
+    }
+    double temp=arr[j];
+    arr[j]=arr[i];
+    arr[i]=temp;
+  }
+  return arr[n/2];;
+}
+
 double getColorVal(int offset, int x, int y, double kernel[KERNELSIZE][KERNELSIZE])
 {
   double totalColorVal=0;
   long int totalNums=0;
+  double arr[KERNELARRAYSIZE];
+  int count=0;
   for(int i=0;i<KERNELSIZE;i++)
   {
     for(int j=0;j<KERNELSIZE;j++)
@@ -612,11 +641,10 @@ double getColorVal(int offset, int x, int y, double kernel[KERNELSIZE][KERNELSIZ
         colVal=height-1;
       int pixIndex = ((colVal*width+rowVal)*3)+offset;
       unsigned char* pixmapCheck;
-      totalColorVal+=(pixmapForeGround[pixIndex]*kernel[i][j]+pixmapBackGround[pixIndex]*(1-kernel[i][j]));
-      totalNums++;
+      arr[count++]=(pixmapForeGround[pixIndex]*kernel[i][j]+pixmapBackGround[pixIndex]*(1-kernel[i][j]));
     }
   }
-  return totalColorVal/(double)totalNums; 
+  return getMedian(arr,count); 
 }
 double findAlpha(int x, int y)
 {
@@ -630,15 +658,12 @@ double findAlpha(int x, int y)
   double redBack, redFore, greenBack, greenFore, blueBack, blueFore;
   getColors(redBack, greenBack, blueBack, x, y, kernel, COLORBACKGROUND);
   getColors(redFore, greenFore, blueFore, x, y, kernel, COLORFOREGROUND);
-  //cout<<greenFore<<" "<<redFore<<" "<<blueFore<<endl;
   if(diff(redBack,redFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(redBack,redFore))
     return (getColorVal(REDOFFSET,x,y,kernel)-redBack)/(redFore-redBack);
-    //return 0;
   else if(diff(greenBack,greenFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(greenBack,greenFore))
     return (getColorVal(GREENOFFSET,x,y,kernel)-greenBack)/(greenFore-greenBack);
   else if(diff(blueBack,blueFore)!=0 && maximum(diff(redBack,redFore), diff(greenBack,greenFore), diff(blueBack,blueFore)) == diff(blueBack,blueFore))
     return (getColorVal(BLUEOFFSET,x,y,kernel)-blueBack)/(blueFore-blueBack);
-    //return 0;
   else
     return 1.0;    
 }
