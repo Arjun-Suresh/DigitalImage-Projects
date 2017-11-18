@@ -535,7 +535,6 @@ void computeKernel(int* kernel, int kernelSize, unsigned char *pixmapKernel)
       double greenColorVal = getCumulativeProbabilites(greenProbabilities, pixmapKernel[val++]);
       double blueColorVal = getCumulativeProbabilites(blueProbabilities, pixmapKernel[val]);      
       kernel[j*kernelSize+i]= (int)(255.0*((redColorVal+greenColorVal+blueColorVal)/3.0));
-      //cout<<(int)pixmapControl[val-2]<<" "<<(int)pixmapControl[val-1]<<" "<<(int)pixmapControl[val]<<"\n";
     }
   }  
 }
@@ -582,6 +581,67 @@ void orderedDither(int kernelSize)
   applyKernel(kernel, kernelSize);
 }
 
+void initPixelsMatrix(int** pixelsMatrix, int colorOffset)
+{
+  for(int y=0;y<height; y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int val = ((y*width+x)*3)+colorOffset;
+      pixelsMatrix[y][x] = pixmapOrig[val];
+    }
+  }
+}
+
+void writeBack(int** pixelsMatrix, int colorOffset)
+{
+  for(int y=0;y<height; y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int val = ((y*width+x)*3)+colorOffset;
+      pixmapComputed[val] = pixelsMatrix[y][x];
+    }
+  }
+}
+
+void applyFloydSteinbergErrorDiffusion()
+{
+  int **pixelsMatrix = (int **)malloc(height * sizeof(int *));
+  for (int i=0; i<height; i++)
+    pixelsMatrix[i] = (int *)malloc(width * sizeof(int));
+  for(int color=0;color<3;color++)
+  {
+    initPixelsMatrix(pixelsMatrix, color);
+    for(int y=0;y<height; y++)
+    {
+      for(int x=0;x<width;x++)
+      {
+        int val = ((y*width+x)*3)+color;
+        int oldColorValue = pixelsMatrix[y][x];
+        int newColorValue;
+        if(oldColorValue<0)
+          newColorValue=0;
+        else if(oldColorValue>255)
+          newColorValue=255;
+        else
+          newColorValue = (oldColorValue/128)*255;
+        pixelsMatrix[y][x] = newColorValue;/*
+        double quant_error = oldColorValue - newColorValue;
+        if(x<width-1)
+          pixelsMatrix[y][x+1] = pixelsMatrix[y][x+1] +(int)(quant_error * 7.0/16.0);
+        if(x>0 && y<height-1)
+          pixelsMatrix[y+1][x-1] = pixelsMatrix[y+1][x-1] + (int)(quant_error * 3.0/16.0);
+        if(y<height-1)
+          pixelsMatrix[y+1][x] = pixelsMatrix[y+1][x] + (int)(quant_error * 5.0/16.0);
+        if(y<height-1 && x<width-1)
+        pixelsMatrix[y+1][x+1] = pixelsMatrix[y+1][x+1] + (int)(quant_error * 1.0/16.0);*/
+      }
+    }
+    writeBack(pixelsMatrix,color);
+  }  
+}
+
 void applyDithering(int option)
 {
   switch(option)
@@ -597,6 +657,7 @@ void applyDithering(int option)
     orderedDither(kernelSize);
     break;
     case 2:
+    applyFloydSteinbergErrorDiffusion();
     break;
   }
 }
