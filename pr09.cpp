@@ -1,7 +1,10 @@
 // =============================================================================
 // VIZA654/CSCE646 at Texas A&M University
-// Homework 5
-// Filters with non-stationary kernels
+// Homework 9
+// Dithering and screening
+// 1. Implemented ordered dithering by dithering a pattern from an input control kernel on to an input image file
+//    The resultant output files here are the dithering output of 8 colors and the output scaled control kernel image
+// 2. Implemented Floyd-Steinberg dot diffusion dithering to an 8 color palette outut
 // output files are generated in the same folder
 // =============================================================================
 
@@ -418,9 +421,11 @@ void generatePPMFile(int option, unsigned char* pixmapFile = NULL, int imageSize
 
 
 //*****************************************************************************************************
-//*************************************Dithering functions*************************************
+//*************************************Dithering functions*********************************************
 //*****************************************************************************************************
 
+
+//Functions used for scaling the kernel image by Size of the kernel / size of the control image
 bool verifyResult(int xRes, int yRes, int kernelSize)
 {
   if(xRes<kernelSize && xRes>=0 && yRes<kernelSize && yRes>=0)
@@ -494,6 +499,12 @@ void scaling(double xScale,double yScale, unsigned char *pixmapKernel, int kerne
 }
 
 
+//Functions used for ordered dithering. In this process, the control kernel image is scaled down,
+//perform histogram equalization, and get a single kernel of size N X N (where N is the input kernel size)
+//from the red, green and blue histograms. This kernel is then applied on the input image in windows of
+//N X N size and bringing it to a palette of 8 colors.
+
+//Get probability distribution of all 256 color levels of single color (R, G or B)
 void getProbabilities(unsigned char* pixmapKernel, double* probabilities, int kernelSize, int colorOffset)
 {
   for(int k=0;k<256;k++)
@@ -512,6 +523,7 @@ void getProbabilities(unsigned char* pixmapKernel, double* probabilities, int ke
   }
 }
 
+//Get cumulative probabilities of the color level
 double getCumulativeProbabilites(double* probabilities, int count)
 {
   double sum=0.0;
@@ -520,6 +532,7 @@ double getCumulativeProbabilites(double* probabilities, int count)
   return sum;
 }
 
+//Average of cumulative distribution of red, green and blue color at every pixel is the kernel value at that pixel
 void computeKernel(int* kernel, int kernelSize, unsigned char *pixmapKernel)
 {
   double redProbabilities[256], greenProbabilities[256], blueProbabilities[256];
@@ -539,6 +552,9 @@ void computeKernel(int* kernel, int kernelSize, unsigned char *pixmapKernel)
   }  
 }
 
+
+//Red, Green and Blue are brought to either 0 or 1 based on the value of color(i,j)-kernel(i%kernelSize,j%kernelSize) difference
+//The resultant image is of palette of 8 colors
 void applyKernel(int* kernel, int kernelSize)
 {
   for(int y=0; y<height;y++)
@@ -581,6 +597,12 @@ void orderedDither(int kernelSize)
   applyKernel(kernel, kernelSize);
 }
 
+//Functions for Floyd-Steinberg error diffusion. What I am doing here is, writing the pixel array
+//to a matrix(for easy computation), quantitize the color to two levels (0 or 255),
+//compute the quantitization error and add the error with weightage to adjacent pixels.
+//This process is carried out for all the 3 colors (R, G and B) to effectively get a 8 color palette
+
+//Write the pixels array to a matrix
 void initPixelsMatrix(int** pixelsMatrix, int colorOffset)
 {
   for(int y=0;y<height; y++)
@@ -593,6 +615,7 @@ void initPixelsMatrix(int** pixelsMatrix, int colorOffset)
   }
 }
 
+//Write back the pixels matrix to output pixels array
 void writeBack(int** pixelsMatrix, int colorOffset)
 {
   for(int y=0;y<height; y++)
@@ -626,7 +649,7 @@ void applyFloydSteinbergErrorDiffusion()
           newColorValue=255;
         else
           newColorValue = (oldColorValue/128)*255;
-        pixelsMatrix[y][x] = newColorValue;/*
+        pixelsMatrix[y][x] = newColorValue;
         double quant_error = oldColorValue - newColorValue;
         if(x<width-1)
           pixelsMatrix[y][x+1] = pixelsMatrix[y][x+1] +(int)(quant_error * 7.0/16.0);
@@ -635,7 +658,7 @@ void applyFloydSteinbergErrorDiffusion()
         if(y<height-1)
           pixelsMatrix[y+1][x] = pixelsMatrix[y+1][x] + (int)(quant_error * 5.0/16.0);
         if(y<height-1 && x<width-1)
-        pixelsMatrix[y+1][x+1] = pixelsMatrix[y+1][x+1] + (int)(quant_error * 1.0/16.0);*/
+        pixelsMatrix[y+1][x+1] = pixelsMatrix[y+1][x+1] + (int)(quant_error * 1.0/16.0);
       }
     }
     writeBack(pixelsMatrix,color);
