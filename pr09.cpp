@@ -66,7 +66,9 @@ void setPixelColorOrig(long int &val, long int& index, unsigned char* fileBuffer
   if(option == 1)
     pixmapOrig[val++]=fileBuffer[index++];
   else
+  {
     pixmapControl[val++]=fileBuffer[index++];
+  }
 }
 // =============================================================================
 // OpenGL Display and Mouse Processing Functions.
@@ -339,12 +341,15 @@ void writeToFile(unsigned char* fileBuffer, long int numberOfCharacters, fstream
   }
 }
 
-void writeHeader(unsigned char* fileBuffer, long int& index)
+void writeHeader(unsigned char* fileBuffer, long int& index, int imageSize=0)
 {
   maxColorValue=255;    
   char widthString[5], heightString[5], maxColorString[5];
-  sprintf(widthString, "%d", width);
-  sprintf(heightString, "%d", height);
+  int w=width,h=height;
+  if(imageSize)
+    w=h=imageSize;
+  sprintf(widthString, "%d", w);
+  sprintf(heightString, "%d", h);
   sprintf(maxColorString, "%d", maxColorValue);
   char magicNumberString[3];
   strcpy(magicNumberString, "P6");
@@ -359,12 +364,15 @@ void writeHeader(unsigned char* fileBuffer, long int& index)
 }
 
 
-unsigned char* writePixelBufferToFileBuffer(unsigned char* fileBuffer, long int& index, long int origSize)
+unsigned char* writePixelBufferToFileBuffer(unsigned char* fileBuffer, long int& index, long int origSize, unsigned char* pixmapFile = NULL, int imageSize=0)
 {
   int charCount=0;
-  for(int i=0;i<height;i++)
+  int w=width,h=height;
+  if(imageSize)
+    w=h=imageSize;
+  for(int i=0;i<h;i++)
   {
-    for(int j=0;j<width;j++)
+    for(int j=0;j<w;j++)
     {
       if(index >= origSize-50)
       {
@@ -372,15 +380,18 @@ unsigned char* writePixelBufferToFileBuffer(unsigned char* fileBuffer, long int&
         delete[] fileBuffer;
         fileBuffer=tempBuffer;
       }
-      int k=((height-i-1)*width+j)*3;
+      int k=((h-i-1)*w+j)*3;
       for(int x=0;x<3;x++)
-      fileBuffer[index++]=pixmapComputed[k++];
+      if(!pixmapFile)
+        fileBuffer[index++]=pixmapComputed[k++];
+      else
+        fileBuffer[index++]=pixmapFile[k++];
     }
   }
   return fileBuffer;
 }
 
-void generatePPMFile(int option)
+void generatePPMFile(int option, unsigned char* pixmapFile = NULL, int imageSize = 0)
 {
   std::fstream ppmFile;
   char fileName[50];
@@ -392,12 +403,15 @@ void generatePPMFile(int option)
     case 2: 
       strcpy(fileName,"outputErrorDiffusionDithering.ppm");
       break;
+    case 3:
+      strcpy(fileName,"kernelImage.ppm");
+      break;
   }
   ppmFile.open(fileName,std::fstream::out);
   long int index=0;
   unsigned char* fileBuffer = new unsigned char[10000];
-  writeHeader(fileBuffer, index);
-  fileBuffer=writePixelBufferToFileBuffer(fileBuffer, index, 10000);
+  writeHeader(fileBuffer, index, imageSize);
+  fileBuffer=writePixelBufferToFileBuffer(fileBuffer, index, 10000, pixmapFile, imageSize);
   writeToFile(fileBuffer, index, ppmFile);
   ppmFile.close();
 }
@@ -467,7 +481,7 @@ void scaling(double xScale,double yScale, unsigned char *pixmapKernel, int kerne
       multiplyMatrix(pixelMatrix, scalingMatrix, resultMatrix);
       int xRes, yRes;
       getValues(resultMatrix,xRes,yRes);
-      if(verifyResult(xRes,yRes))
+      if(verifyResult(xRes,yRes,kernelSize))
       {
         int input = (y * widthControl + x) * 3;
         int output = (yRes * kernelSize + xRes) * 3; 
@@ -482,47 +496,46 @@ void scaling(double xScale,double yScale, unsigned char *pixmapKernel, int kerne
 
 void getProbabilities(unsigned char* pixmapKernel, double* probabilities, int kernelSize, int colorOffset)
 {
-  for(int k=0;k<255;k++)
+  for(int k=0;k<256;k++)
     probabilities[k]=0;
   for(int j=0; j<kernelSize; j++)
   {
     for(int i=0; i<kernelSize; i++)
     {
       int val = ((j*kernelSize+i)*3)+colorOffset;
-      probabilities[val]++;
+      probabilities[pixmapKernel[val]]++;
     }
   }
-  for(int k=0;k<255;k++)
+  for(int k=0;k<256;k++)
+  {
     probabilities[k]=((double)(probabilities[k]))/(double)(kernelSize*kernelSize);
+  }
 }
 
 double getCumulativeProbabilites(double* probabilities, int count)
 {
   double sum=0.0;
-  for(int i=0;i<count;i++)
+  for(int i=0;i<=count;i++)
     sum+=probabilities[i];
   return sum;
 }
 
-void computeKernel(int* kernel, int kernelSize)
+void computeKernel(int* kernel, int kernelSize, unsigned char *pixmapKernel)
 {
-  unsigned char *pixmapKernel = new unsigned char[kernelSize*kernelSize*3];
-  double xScale = (double)kernelSize/(double)widthControl;
-  double yScale = (double)kernelSize/(double)heightControl;
-  scaling(xScale, yScale, pixmapKernel. kernelSize);
-  int redProbabilities[256], greenProbabilies[256], blueProbabilities[256];
+  double redProbabilities[256], greenProbabilities[256], blueProbabilities[256];
   getProbabilities(pixmapKernel, redProbabilities, kernelSize, 0);
   getProbabilities(pixmapKernel, greenProbabilities, kernelSize, 1);
   getProbabilities(pixmapKernel, blueProbabilities, kernelSize, 2);
-  for(int j=0; i<kernelSize; j++)
+  for(int j=0; j<kernelSize; j++)
   {
-    for(int i=0; j<kernelSize; i++)
+    for(int i=0; i<kernelSize; i++)
     {
-      int val = (j*kernelSize+i)*3;
-      double redVal = getCumulativeProbabilites(redProbabilities, pixmapControl[val++]);
-      double greenVal = getCumulativeProbabilites(greenProbabilities, pixmapControl[val++]);
-      double blueVal = getCumulativeProbabilites(blueProbabilities, pixmapControl[val]);
-      kernel[j*kernelSize+i]= (int)(255.0*((redVal+greenVal+blueVal)/3.0));
+      int val = ((j*kernelSize+i)*3);
+      double redColorVal = getCumulativeProbabilites(redProbabilities, pixmapKernel[val++]);
+      double greenColorVal = getCumulativeProbabilites(greenProbabilities, pixmapKernel[val++]);
+      double blueColorVal = getCumulativeProbabilites(blueProbabilities, pixmapKernel[val]);      
+      kernel[j*kernelSize+i]= (int)(255.0*((redColorVal+greenColorVal+blueColorVal)/3.0));
+      //cout<<(int)pixmapControl[val-2]<<" "<<(int)pixmapControl[val-1]<<" "<<(int)pixmapControl[val]<<"\n";
     }
   }  
 }
@@ -534,9 +547,9 @@ void applyKernel(int* kernel, int kernelSize)
     for(int x=0;x<width;x++)
     {
       int val = (y*width+x)*3;
-      int redVal = pixMapOrig[val++]-kernel[(y%kernelSize)*kernelSize+(x%kernelSize)];
-      int greenVal = pixMapOrig[val++]-kernel[(y%kernelSize)*kernelSize+(x%kernelSize)];
-      int blueVal = pixMapOrig[val]-kernel[(y%kernelSize)*kernelSize+(x%kernelSize)];
+      int redVal = pixmapOrig[val++]-kernel[(y%kernelSize)*kernelSize+(x%kernelSize)];
+      int greenVal = pixmapOrig[val++]-kernel[(y%kernelSize)*kernelSize+(x%kernelSize)];
+      int blueVal = pixmapOrig[val]-kernel[(y%kernelSize)*kernelSize+(x%kernelSize)];
       if(redVal<=0)
         redVal=0;
       else
@@ -550,19 +563,25 @@ void applyKernel(int* kernel, int kernelSize)
       else
         blueVal=255;
       val = (y*width+x)*3;
-      pixMapComputed[val++]=redVal;
-      pixMapComputed[val++]=greenVal;
-      pixMapComputed[val]=blueVal;    
+      pixmapComputed[val++]=redVal;
+      pixmapComputed[val++]=greenVal;
+      pixmapComputed[val]=blueVal;    
     }
   }  
 }
 
 void orderedDither(int kernelSize)
 {
+  unsigned char *pixmapKernel = new unsigned char[kernelSize*kernelSize*3];
+  double xScale = (double)kernelSize/(double)widthControl;
+  double yScale = (double)kernelSize/(double)heightControl;
+  scaling(xScale, yScale, pixmapKernel, kernelSize);
+  generatePPMFile(3, pixmapKernel,kernelSize);
   int* kernel = new int[kernelSize*kernelSize];
-  computeKernel(kernel, kernelSize);
+  computeKernel(kernel, kernelSize, pixmapKernel);
   applyKernel(kernel, kernelSize);
 }
+
 void applyDithering(int option)
 {
   switch(option)
@@ -572,9 +591,9 @@ void applyDithering(int option)
     int kernelSize;
     cout<<"Enter the image to be used for kernel\n";
     cin>>kernelFile;
-    cout<<"Enter:\n1. 8 X 8 kernel\n2. 16 X 16 kernel\n3. 32 X 32 kernel\n";
+    cout<<"Enter the kernel size (N) of the N X N kernel\n";
     cin>>kernelSize;
-    readPPMFile(inputPPMFile,2);
+    readPPMFile(kernelFile,2);
     orderedDither(kernelSize);
     break;
     case 2:
