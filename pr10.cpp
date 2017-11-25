@@ -36,12 +36,13 @@
 
 #define KERNELSIZE 2
 #define KERNELARRAYSIZE 4
+
 using namespace std;
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
 // =============================================================================
-int width, height, width1, height1, maxColorValue, magicNo;
-unsigned char *pixmapBackGround, *pixmapForeGround, *pixmapTriMap, *pixmapComputed;
+int width, height, maxColorValue, magicNo,widthControl, heightControl;
+unsigned char *pixmapOrig, *pixmapControl, *pixmapComputed;
 
 inline double mod(double x) 
 {
@@ -69,11 +70,11 @@ void setPixelColor(int y, int x, int red, int green, int blue)
 void setPixelColorOrig(long int &val, long int& index, unsigned char* fileBuffer, int option)
 {
   if(option == 1)
-    pixmapBackGround[val++]=fileBuffer[index++];
-  else if(option == 2)
-    pixmapForeGround[val++]=fileBuffer[index++];
-  else if(option == 3)
-    pixmapTriMap[val++]=fileBuffer[index++];
+    pixmapOrig[val++]=fileBuffer[index++];
+  else
+  {
+    pixmapControl[val++]=fileBuffer[index++];
+  }
 }
 // =============================================================================
 // OpenGL Display and Mouse Processing Functions.
@@ -207,16 +208,16 @@ bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharac
   switch(valueId)
   {
     case WIDTHVALUEID:
-      if(option == 1 || option == 3)
-      	width=value;
+      if (option == 1)
+        width=value;
       else
-        width1=value;
+        widthControl=value;
       break;
     case HEIGHTVALUEID:
-      if(option == 1 || option == 3)
-      	height=value;
+      if (option == 1)
+        height=value;
       else
-        height1=value;
+        heightControl = value;
       break;
     case MAXCOLORVALUEID:
       maxColorValue=value;
@@ -228,8 +229,16 @@ bool parseValue(long int& index, unsigned char* fileBuffer, long int numOfCharac
 bool fillPixelsBin(long int& index, unsigned char* fileBuffer, long int numOfCharacters, int option)
 {
   int wVal,hVal;
-  wVal=width;
-  hVal=height;
+  if (option == 1)
+  {
+    wVal=width;
+    hVal=height;
+  }
+  else
+  {
+    wVal=widthControl;
+    hVal=heightControl;
+  }
   long int rowVal=0,colVal=0;
   while(rowVal<hVal)
   {
@@ -306,11 +315,9 @@ bool readPPMFile(char* filePath, int option)
     if(magicNumberParsed && widthParsed && heightParsed && maxColorValueParsed)
     {
       if(option == 1)
-        pixmapBackGround = new unsigned char[width*height*3];
-      else if(option == 2)
-        pixmapForeGround = new unsigned char[width1*height1*3];
-      else if(option == 3)
-        pixmapTriMap = new unsigned char[width*height*3];
+        pixmapOrig = new unsigned char[width*height*3];
+      else
+        pixmapControl = new unsigned char[widthControl*heightControl*3];
       if(!(fillPixelsBin(index, fileBuffer, numOfCharacters, option)))
         return false;
       delete[] fileBuffer;
@@ -320,18 +327,34 @@ bool readPPMFile(char* filePath, int option)
 }
 
 
-
-
+void readAllPPMFiles(int option)
+{
+  char foregroundPPMFile[100], backgroundPPMFile[100], inputPPMFile[100];
+  if(option==1)
+  {
+    cout<<"Enter the input ppm image\n";
+    cin>>inputPPMFile;
+    readPPMFile(inputPPMFile,1);
+  }  
+  else if (option == 2)
+  {
+    cout<<"Enter the first ppm image\n";
+    cin>>backgroundPPMFile;
+    cout<<"Enter the second ppm image\n";
+    cin>>foregroundPPMFile;
+    readPPMFile(backgroundPPMFile,1);
+    readPPMFile(foregroundPPMFile,2);
+  }
+}
 
 //************************************************************************************************************
 //**********************Functions to save from pixelMap to ppm file*******************************************
 //************************************************************************************************************
+
 void fillCharacters(unsigned char* fileBuffer, long int& index, char* data)
 {
   for(int i=0;i<strlen(data);i++)
-  {
     fileBuffer[index++]=data[i];
-  }
 }
 
 void writeToFile(unsigned char* fileBuffer, long int numberOfCharacters, fstream& ppmFile)
@@ -346,8 +369,9 @@ void writeHeader(unsigned char* fileBuffer, long int& index)
 {
   maxColorValue=255;    
   char widthString[5], heightString[5], maxColorString[5];
-  sprintf(widthString, "%d", width);
-  sprintf(heightString, "%d", height);
+  int w=width,h=height;
+  sprintf(widthString, "%d", w);
+  sprintf(heightString, "%d", h);
   sprintf(maxColorString, "%d", maxColorValue);
   char magicNumberString[3];
   strcpy(magicNumberString, "P6");
@@ -362,12 +386,13 @@ void writeHeader(unsigned char* fileBuffer, long int& index)
 }
 
 
-unsigned char* writePixelBufferToFileBuffer(unsigned char* fileBuffer, long int& index, long int origSize)
+unsigned char* writePixelBufferToFileBuffer(unsigned char* fileBuffer, long int& index, long int origSize, unsigned char* pixmapFile = NULL)
 {
   int charCount=0;
-  for(int i=0;i<height;i++)
+  int w=width,h=height;
+  for(int i=0;i<h;i++)
   {
-    for(int j=0;j<width;j++)
+    for(int j=0;j<w;j++)
     {
       if(index >= origSize-50)
       {
@@ -375,15 +400,18 @@ unsigned char* writePixelBufferToFileBuffer(unsigned char* fileBuffer, long int&
         delete[] fileBuffer;
         fileBuffer=tempBuffer;
       }
-      int k=((height-i-1)*width+j)*3;
+      int k=((h-i-1)*w+j)*3;
       for(int x=0;x<3;x++)
-      fileBuffer[index++]=pixmapComputed[k++];
+      if(!pixmapFile)
+        fileBuffer[index++]=pixmapComputed[k++];
+      else
+        fileBuffer[index++]=pixmapFile[k++];
     }
   }
   return fileBuffer;
 }
 
-void generatePPMFile(int option)
+void generatePPMFile(int option, unsigned char* pixmapFile = NULL)
 {
   std::fstream ppmFile;
   char fileName[50];
@@ -395,41 +423,137 @@ void generatePPMFile(int option)
     case 2: 
       strcpy(fileName,"outputStitching.ppm");
       break;
+    case 3:
+      strcpy(fileName,"ScaledImage2.ppm");
+      break;
   }
   ppmFile.open(fileName,std::fstream::out);
   long int index=0;
   unsigned char* fileBuffer = new unsigned char[10000];
   writeHeader(fileBuffer, index);
-  fileBuffer=writePixelBufferToFileBuffer(fileBuffer, index, 10000);
+  fileBuffer=writePixelBufferToFileBuffer(fileBuffer, index, 10000, pixmapFile);
   writeToFile(fileBuffer, index, ppmFile);
   ppmFile.close();
-}
-
-void readAllPPMFiles(int option)
-{
-  char foregroundPPMFile[100], backgroundPPMFile[100], inputPPMFile[100];
-  if(option==1)
-  {
-    cout<<"Enter the input ppm image\n";
-    cin>>inputPPMFile;
-    readPPMFile(inputPPMFile,1);
-  }  
-  else if (option == 2)
-  {
-    cout<<"Enter the foreground ppm image\n";
-    cin>>foregroundPPMFile;
-    cout<<"Enter the background ppm image\n";
-    cin>>backgroundPPMFile;
-    readPPMFile(backgroundPPMFile,1);
-    readPPMFile(foregroundPPMFile,2);
-  }
 }
 
 //************************************************************************************************************
 //*************************************Compositing functions**************************************************
 //************************************************************************************************************
+//Functions used for scaling the kernel image by Size of the kernel / size of the control image
+bool verifyResult(int xRes, int yRes)
+{
+  if(xRes<width && xRes>=0 && yRes<height && yRes>=0)
+    return true;
+  return false;
+}
 
-double getHue(int x, int y)
+void initMatrix(double* pixelMatrix, int x, int y)
+{
+  pixelMatrix[0]=x;
+  pixelMatrix[1]=y;
+  pixelMatrix[2]=1;
+}
+
+void getValues(double* resultMatrix, int& x, int& y)
+{
+  x=(int)(resultMatrix[0]+0.5);
+  y=(int)(resultMatrix[1]+0.5);
+}
+
+void multiplyMatrix(double* pixelMatrix, double transformation[][3], double* resultMatrix)
+{
+  for(int i=0;i<3;i++)
+  {
+    resultMatrix[i]=0;
+    for(int j=0;j<3;j++)
+    {
+      resultMatrix[i]+=(transformation[i][j]*pixelMatrix[j]);
+    }
+  }
+  for(int i=0;i<2;i++)
+    resultMatrix[i] = resultMatrix[i]/resultMatrix[2];
+}
+
+void antiAliaseScaling(double xScale, double yScale, unsigned char *pixmapKernel)
+{
+  double scalingMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+        scalingMatrix[i][j]=0;      
+    }
+  }
+
+  scalingMatrix[2][2]=1;
+  scalingMatrix[0][0]=1/(double)xScale;
+  scalingMatrix[1][1]=1/(double)yScale;
+  for(int y=0;y<height;y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int input = (y * width + x) * 3;
+      if(pixmapKernel[input] == 0 && pixmapKernel[input+1] == 0 && pixmapKernel[input+2] == 0)
+      {
+        initMatrix(pixelMatrix,x,y);
+        multiplyMatrix(pixelMatrix, scalingMatrix, resultMatrix);
+        int xRes, yRes;
+        getValues(resultMatrix,xRes,yRes);
+        if(xRes<widthControl && xRes>=0 && yRes<heightControl && yRes>=0)
+        { 
+          int output = (yRes * width + xRes) * 3; 
+          pixmapKernel[input++] = pixmapControl[output++];
+          pixmapKernel[input++] = pixmapControl[output++];
+          pixmapKernel[input] = pixmapControl[output];
+        }
+      }
+    }
+  }
+}
+
+void scaling(double xScale,double yScale, unsigned char *pixmapKernel)
+{
+  double scalingMatrix[3][3];
+  double pixelMatrix[3],resultMatrix[3];
+  for(int i=0;i<3;i++)
+  {
+    for(int j=0;j<3;j++)
+    {
+        scalingMatrix[i][j]=0;      
+    }
+  }
+
+  scalingMatrix[2][2]=1;
+  scalingMatrix[0][0]=xScale;
+  scalingMatrix[1][1]=yScale;
+
+  for(int y=0;y<heightControl;y++)
+  {
+    for(int x=0;x<widthControl;x++)
+    {
+      initMatrix(pixelMatrix,x,y);
+      multiplyMatrix(pixelMatrix, scalingMatrix, resultMatrix);
+      int xRes, yRes;
+      getValues(resultMatrix,xRes,yRes);
+      if(verifyResult(xRes,yRes))
+      {
+        int input = (y * widthControl + x) * 3;
+        int output = (yRes * width + xRes) * 3; 
+        pixmapKernel[output++] = pixmapControl[input++];
+        pixmapKernel[output++] = pixmapControl[input++];
+        pixmapKernel[output] = pixmapControl[input];
+      }
+    }
+  } 
+  antiAliaseScaling(xScale, yScale, pixmapKernel);
+}
+
+
+
+
+
+double getHue(int x, int y, unsigned char* pixmapFile=NULL)
 {
   double red, green, blue;
   double max, min, delta;
@@ -437,9 +561,19 @@ double getHue(int x, int y)
   int hue;
   int val = (y * width + x)*3;
 
-  red =  pixmapBackGround[val++]/255.0; 
-  green = pixmapBackGround[val++]/255.0; 
-  blue = pixmapBackGround[val]/255.0;
+  if(!pixmapFile)
+  {
+    red =  pixmapOrig[val++]/255.0; 
+    green = pixmapOrig[val++]/255.0; 
+    blue = pixmapOrig[val]/255.0;
+  }
+  
+  else
+  {
+    red =  pixmapFile[val++]/255.0; 
+    green = pixmapFile[val++]/255.0; 
+    blue = pixmapFile[val]/255.0;
+  }
 
   max = maximum(red, green, blue);
   min = minimum(red, green, blue);
@@ -515,14 +649,14 @@ void applyShift(int* minPathSeam)
     {
       int val1 = (y*width+xVal)*3;
       int val2 = (y*width+(xVal+1))*3;
-      pixmapBackGround[val1++]=pixmapBackGround[val2++];
-      pixmapBackGround[val1++]=pixmapBackGround[val2++];
-      pixmapBackGround[val1]=pixmapBackGround[val2];
+      pixmapOrig[val1++]=pixmapOrig[val2++];
+      pixmapOrig[val1++]=pixmapOrig[val2++];
+      pixmapOrig[val1]=pixmapOrig[val2];
     }
     int lastColumn = (y*width+(width-1))*3;
-    pixmapBackGround[lastColumn++]=0;      
-    pixmapBackGround[lastColumn++]=0;
-    pixmapBackGround[lastColumn]=0;
+    pixmapOrig[lastColumn++]=0;      
+    pixmapOrig[lastColumn++]=0;
+    pixmapOrig[lastColumn]=0;
   }
 }
 
@@ -548,6 +682,7 @@ void applyCarving(int iVal)
   }
   applyShift(minPathSeam);
   delete[] pathMatrix;
+  delete[] minPathSeam;
 }
 
 void copyResult(int outputWidth)
@@ -558,9 +693,9 @@ void copyResult(int outputWidth)
     {
       int val1 = (y*width+x)*3;
       int val2 = (y*outputWidth+x)*3;
-      pixmapComputed[val2++]=pixmapBackGround[val1++];
-      pixmapComputed[val2++]=pixmapBackGround[val1++];
-      pixmapComputed[val2]=pixmapBackGround[val1];
+      pixmapComputed[val2++]=pixmapOrig[val1++];
+      pixmapComputed[val2++]=pixmapOrig[val1++];
+      pixmapComputed[val2]=pixmapOrig[val1];
     }
   }      
 }
@@ -576,6 +711,100 @@ void applyRepeatedCarving(int outputWidth)
   width = outputWidth;
 }
 
+
+double findLeastCostPathStitching(int x, int* pathMatrix, unsigned char* pixmapFile)
+{
+  pathMatrix[0]=x;
+  double sumMinimumHues=0;
+  sumMinimumHues += diff(getHue(x,0),getHue(x,0,pixmapFile));
+  int currentXValue = x;
+  for(int y=1;y<height;y++)
+  {
+    double hue1=DBL_MAX, hue2=DBL_MAX, hue3=DBL_MAX, minHueValue;
+    double hue11=DBL_MAX, hue22=DBL_MAX, hue33=DBL_MAX;
+    hue1 = getHue(currentXValue,y);
+    if(currentXValue>0)
+      hue2 = getHue(currentXValue-1,y);
+    if(currentXValue<width-1)
+      hue3 = getHue(currentXValue+1,y);
+    hue11 = getHue(currentXValue,y,pixmapFile);
+    if(currentXValue>0)
+      hue22 = getHue(currentXValue-1,y,pixmapFile);
+    if(currentXValue<width-1)
+      hue33 = getHue(currentXValue+1,y,pixmapFile);
+    double diffhue1 = diff(hue1,hue11);
+    double diffhue2 = diff(hue2,hue22);
+    double diffhue3 = diff(hue3,hue33);
+
+
+    minHueValue = minimum(diffhue1, diffhue2, diffhue3);
+    if(minHueValue == diffhue1)
+    {
+      sumMinimumHues+=diffhue1;
+      pathMatrix[y]=currentXValue;
+    }
+    else if(minHueValue == diffhue2)
+    {
+      sumMinimumHues+=diffhue2;
+      pathMatrix[y]=currentXValue-1;
+    }
+    else
+    {
+      sumMinimumHues+=diffhue3;
+      pathMatrix[y]=currentXValue+1;
+    }
+  }
+  return sumMinimumHues;    
+}
+
+void stitch(int* minPathSeam,  unsigned char* pixmapFile)
+{
+  for(int y=0; y<height;y++)
+  {
+    int x = minPathSeam[y];
+    for(int xVal = 0; xVal<x;xVal++)
+    {
+      int val1 = (y*width+xVal)*3;
+      pixmapComputed[val1]=pixmapOrig[val1];
+      pixmapComputed[val1+1]=pixmapOrig[val1+1];
+      pixmapComputed[val1+2]=pixmapOrig[val1+2];
+    }
+    
+    for(int xVal = x; xVal<width;xVal++)
+    {
+      int val1 = (y*width+xVal)*3;
+      pixmapComputed[val1]=pixmapFile[val1];
+      pixmapComputed[val1+1]=pixmapFile[val1+1];
+      pixmapComputed[val1+2]=pixmapFile[val1+2];
+    }
+  }
+}
+
+void applyStitching()
+{
+  double leastSum = DBL_MAX;
+  unsigned char *pixmap = new unsigned char[width*height*3];
+  double xScale = (double)width/(double)widthControl;
+  double yScale = (double)height/(double)heightControl;
+  scaling(xScale, yScale, pixmap);
+  generatePPMFile(3, pixmap);
+  int* pathMatrix = (int*) malloc (sizeof(int) * height);
+  int* minPathSeam= (int*) malloc (sizeof(int) * height);
+  for(int x=0;x<width;x++)
+  {
+    double currentSum = findLeastCostPathStitching(x, pathMatrix, pixmap);
+    if(currentSum < leastSum)
+    {
+      leastSum = currentSum;
+      copySeam(minPathSeam, pathMatrix);
+    }
+  }
+  pixmapComputed = new unsigned char[width * height * 3];
+  stitch(minPathSeam, pixmap);
+  delete[] pathMatrix;
+  delete[] minPathSeam;
+}
+
 void applyOperation(int option)
 {
   int outputWidth;
@@ -585,8 +814,8 @@ void applyOperation(int option)
     cin>>outputWidth;
     applyRepeatedCarving(outputWidth);
   }
-  //else
-    //applyStitching();
+  else
+    applyStitching();
 }
 // =============================================================================
 // main() Program Entry
