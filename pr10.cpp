@@ -546,10 +546,7 @@ void applyCarving(int iVal)
       copySeam(minPathSeam, pathMatrix);
     }
   }
-
-  cout<<leastSum<<" "<<minPathSeam[0]<<endl;
   applyShift(minPathSeam);
-  
   delete[] pathMatrix;
 }
 
@@ -572,7 +569,6 @@ void applyRepeatedCarving(int outputWidth)
 {
   for(int i=0;i<width-outputWidth;i++)
   {
-    cout<<i<<endl;
     applyCarving(i);
   }
   pixmapComputed = new unsigned char[outputWidth * height * 3];
