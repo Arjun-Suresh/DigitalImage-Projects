@@ -390,22 +390,10 @@ void generatePPMFile(int option)
   switch(option)
   {
     case 1: 
-      strcpy(fileName,"outputNormal.ppm");
+      strcpy(fileName,"outputCarving.ppm");
       break;
     case 2: 
-      strcpy(fileName,"outputMultiply.ppm");
-      break;
-    case 3:
-      strcpy(fileName,"outputSubtract.ppm");
-      break;
-    case 4:
-      strcpy(fileName,"outputMax.ppm");
-      break;
-    case 5:
-      strcpy(fileName,"outputMin.ppm");
-      break;
-    case 6:
-      strcpy(fileName,"outputScreen.ppm");
+      strcpy(fileName,"outputStitching.ppm");
       break;
   }
   ppmFile.open(fileName,std::fstream::out);
@@ -480,10 +468,12 @@ double getHue(int x, int y)
   return hue;
 }
 
-double findLeastCostPath(int x, int* pathMatrix)
+double findLeastCostPath(int x, int* pathMatrix, int iVal)
 {
   pathMatrix[0]=x;
-  double sumMinimumHues = getHue(x, 0);
+  double currentHue = getHue(x,0);
+  double sumMinimumHues=0;
+  sumMinimumHues += currentHue;
   int currentXValue = x;
   for(int y=1;y<height;y++)
   {
@@ -491,76 +481,89 @@ double findLeastCostPath(int x, int* pathMatrix)
     hue1 = getHue(currentXValue,y);
     if(currentXValue>0)
       hue2 = getHue(currentXValue-1,y);
-    if(currentXValue<width-1)
+    if(currentXValue<width-1-iVal)
       hue3 = getHue(currentXValue+1,y);
-    minHueValue = minimum(hue1, hue2, hue3);
-    if(minHueValue == hue1)
+    minHueValue = minimum(diff(currentHue,hue1), diff(currentHue,hue2), diff(currentHue,hue3));
+    if(minHueValue == diff(currentHue,hue1))
     {
-      sumMinimumHues+=hue1;
+      sumMinimumHues+=diff(currentHue,hue1);
       pathMatrix[y]=currentXValue;
+      currentHue = hue1;
     }
-    else if(minHueValue == hue2)
+    else if(minHueValue == diff(currentHue,hue2))
     {
-      sumMinimumHues+=hue2;
+      sumMinimumHues+=diff(currentHue,hue2);
       pathMatrix[y]=currentXValue-1;
+      currentHue = hue2;
     }
     else
     {
-      sumMinimumHues+=hue3;
+      sumMinimumHues+=diff(currentHue,hue3);
       pathMatrix[y]=currentXValue+1;
+      currentHue = hue3;
     }
   }
   return sumMinimumHues;    
 }
 
-void updateMatrix(int* minPathSeam)
+void applyShift(int* minPathSeam)
 {
   for(int y=0; y<height;y++)
   {
     int x = minPathSeam[y];
-    for(int xVal = x+1; xVal<width;xVal++)
+    for(int xVal = x; xVal<width-1;xVal++)
     {
       int val1 = (y*width+xVal)*3;
-      int val2 = (y*width+(xVal-1))*3;
-      pixmapBackGround[val2++]=pixmapBackGround[val1++];
-      pixmapBackGround[val2++]=pixmapBackGround[val1++];
-      pixmapBackGround[val2]=pixmapBackGround[val1];
-      int lastColumn = (y*width+(width-1))*3;
-      pixmapBackGround[lastColumn++]=0;      
-      pixmapBackGround[lastColumn++]=0;
-      pixmapBackGround[lastColumn]=0;
+      int val2 = (y*width+(xVal+1))*3;
+      pixmapBackGround[val1++]=pixmapBackGround[val2++];
+      pixmapBackGround[val1++]=pixmapBackGround[val2++];
+      pixmapBackGround[val1]=pixmapBackGround[val2];
     }
+    int lastColumn = (y*width+(width-1))*3;
+    pixmapBackGround[lastColumn++]=0;      
+    pixmapBackGround[lastColumn++]=0;
+    pixmapBackGround[lastColumn]=0;
   }
 }
 
-void applyCarving()
+void copySeam(int* minPathSeam, int* pathMatrix)
+{
+  for(int y=0;y<height;y++)
+    minPathSeam[y]=pathMatrix[y];
+}
+
+void applyCarving(int iVal)
 {
   double leastSum = DBL_MAX;
   int* pathMatrix = (int*) malloc (sizeof(int) * height);
-  int* minPathSeam=NULL;
-  for(int x=0;x<width;x++)
+  int* minPathSeam= (int*) malloc (sizeof(int) * height);
+  for(int x=0;x<width-iVal;x++)
   {
-    double currentSum = findLeastCostPath(x, pathMatrix);
-    if(currentSum<leastSum)
+    double currentSum = findLeastCostPath(x, pathMatrix, iVal);
+    if(currentSum < leastSum)
     {
       leastSum = currentSum;
-      minPathSeam = pathMatrix;
+      copySeam(minPathSeam, pathMatrix);
     }
   }
-  updateMatrix(minPathSeam);
+
+  cout<<leastSum<<" "<<minPathSeam[0]<<endl;
+  applyShift(minPathSeam);
+  
   delete[] pathMatrix;
 }
 
-void copyResult()
+void copyResult(int outputWidth)
 {
   for(int y=0;y<height;y++)
   {
-    for(int x=0;x<width;x++)
+    for(int x=0;x<outputWidth;x++)
     {
-      int val = (y*width+x)*3;
-      pixmapComputed[val]=pixmapBackGround[val];
-      pixmapComputed[val+1]=pixmapBackGround[val+1];
-      pixmapComputed[val+2]=pixmapBackGround[val+2];
+      int val1 = (y*width+x)*3;
+      int val2 = (y*outputWidth+x)*3;
+      pixmapComputed[val2++]=pixmapBackGround[val1++];
+      pixmapComputed[val2++]=pixmapBackGround[val1++];
+      pixmapComputed[val2]=pixmapBackGround[val1];
     }
   }      
 }
@@ -568,10 +571,13 @@ void copyResult()
 void applyRepeatedCarving(int outputWidth)
 {
   for(int i=0;i<width-outputWidth;i++)
-    applyCarving();
+  {
+    cout<<i<<endl;
+    applyCarving(i);
+  }
   pixmapComputed = new unsigned char[outputWidth * height * 3];
-  width=outputWidth;
-  copyResult();
+  copyResult(outputWidth);
+  width = outputWidth;
 }
 
 void applyOperation(int option)
@@ -579,7 +585,7 @@ void applyOperation(int option)
   int outputWidth;
   if(option == 1)
   {
-    cout<<"Width of the original image is "<<width1<<". Enter the width required in the carved image\n";
+    cout<<"Width of the original image is "<<width<<". Enter the width required in the carved image\n";
     cin>>outputWidth;
     applyRepeatedCarving(outputWidth);
   }
@@ -592,7 +598,7 @@ void applyOperation(int option)
 int main(int argc, char *argv[])
 {
   int option;
-  cout<<"Enter options:\n1. Carving\n2. Carving\n";
+  cout<<"Enter options:\n1. Carving\n2. Stitching\n";
   cin>>option;
 
   readAllPPMFiles(option);
