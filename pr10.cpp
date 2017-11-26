@@ -1,9 +1,9 @@
 // =============================================================================
 // VIZA654/CSCE646 at Texas A&M University
-// Homework 8
-// Compositing
-// 1. Normal, multiply, max, min
-// 2. Chroma key compositing using over operator and median of weighted averages
+// Homework 10
+// Stitching and carving
+// 1. Carve an aimage from original width to the input width by repeatedly identifying the least impact seams.
+// 2. Stitch input image 1 on the left with input image 2 on the right with a seam having least difference between the 2 images
 // output files are generated in the same folder
 // =============================================================================
 
@@ -437,9 +437,9 @@ void generatePPMFile(int option, unsigned char* pixmapFile = NULL)
 }
 
 //************************************************************************************************************
-//*************************************Compositing functions**************************************************
+//*************************************Stitching and carving functions**************************************************
 //************************************************************************************************************
-//Functions used for scaling the kernel image by Size of the kernel / size of the control image
+//Functions used for scaling the image 2 to be stitched to the size of image 1
 bool verifyResult(int xRes, int yRes)
 {
   if(xRes<width && xRes>=0 && yRes<height && yRes>=0)
@@ -553,6 +553,8 @@ void scaling(double xScale,double yScale, unsigned char *pixmapKernel)
 
 
 
+//Hue is being used as the parameter whiich is checked for impact
+//Using the algorithm provided by the professor as template
 double getHue(int x, int y, unsigned char* pixmapFile=NULL)
 {
   double red, green, blue;
@@ -602,6 +604,8 @@ double getHue(int x, int y, unsigned char* pixmapFile=NULL)
   return hue;
 }
 
+
+//Carving functions
 double findLeastCostPath(int x, int* pathMatrix, int iVal)
 {
   pathMatrix[0]=x;
@@ -714,6 +718,7 @@ void applyRepeatedCarving(int outputWidth)
 }
 
 
+//Stitching functions
 double findLeastCostPathStitching(int x, int* pathMatrix, unsigned char* pixmapFile)
 {
   pathMatrix[0]=x;
