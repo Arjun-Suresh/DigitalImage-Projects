@@ -502,7 +502,7 @@ void antiAliaseScaling(double xScale, double yScale, unsigned char *pixmapKernel
         getValues(resultMatrix,xRes,yRes);
         if(xRes<widthControl && xRes>=0 && yRes<heightControl && yRes>=0)
         { 
-          int output = (yRes * width + xRes) * 3; 
+          int output = (yRes * widthControl + xRes) * 3; 
           pixmapKernel[input++] = pixmapControl[output++];
           pixmapKernel[input++] = pixmapControl[output++];
           pixmapKernel[input] = pixmapControl[output];
@@ -627,13 +627,15 @@ double findLeastCostPath(int x, int* pathMatrix, int iVal)
     else if(minHueValue == diff(currentHue,hue2))
     {
       sumMinimumHues+=diff(currentHue,hue2);
-      pathMatrix[y]=currentXValue-1;
+      currentXValue-=1;
+      pathMatrix[y]=currentXValue;
       currentHue = hue2;
     }
     else
     {
       sumMinimumHues+=diff(currentHue,hue3);
-      pathMatrix[y]=currentXValue+1;
+      currentXValue+=1;
+      pathMatrix[y]=currentXValue;
       currentHue = hue3;
     }
   }
@@ -721,7 +723,7 @@ double findLeastCostPathStitching(int x, int* pathMatrix, unsigned char* pixmapF
   for(int y=1;y<height;y++)
   {
     double hue1=DBL_MAX, hue2=DBL_MAX, hue3=DBL_MAX, minHueValue;
-    double hue11=DBL_MAX, hue22=DBL_MAX, hue33=DBL_MAX;
+    double hue11=DBL_MIN, hue22=DBL_MIN, hue33=DBL_MIN;
     hue1 = getHue(currentXValue,y);
     if(currentXValue>0)
       hue2 = getHue(currentXValue-1,y);
@@ -736,7 +738,6 @@ double findLeastCostPathStitching(int x, int* pathMatrix, unsigned char* pixmapF
     double diffhue2 = diff(hue2,hue22);
     double diffhue3 = diff(hue3,hue33);
 
-
     minHueValue = minimum(diffhue1, diffhue2, diffhue3);
     if(minHueValue == diffhue1)
     {
@@ -746,12 +747,14 @@ double findLeastCostPathStitching(int x, int* pathMatrix, unsigned char* pixmapF
     else if(minHueValue == diffhue2)
     {
       sumMinimumHues+=diffhue2;
-      pathMatrix[y]=currentXValue-1;
+      currentXValue-=1;
+      pathMatrix[y]=currentXValue;
     }
     else
     {
       sumMinimumHues+=diffhue3;
-      pathMatrix[y]=currentXValue+1;
+      currentXValue+=1;
+      pathMatrix[y]=currentXValue;
     }
   }
   return sumMinimumHues;    
@@ -762,6 +765,7 @@ void stitch(int* minPathSeam,  unsigned char* pixmapFile)
   for(int y=0; y<height;y++)
   {
     int x = minPathSeam[y];
+    
     for(int xVal = 0; xVal<x;xVal++)
     {
       int val1 = (y*width+xVal)*3;
@@ -790,7 +794,7 @@ void applyStitching()
   generatePPMFile(3, pixmap);
   int* pathMatrix = (int*) malloc (sizeof(int) * height);
   int* minPathSeam= (int*) malloc (sizeof(int) * height);
-  for(int x=0;x<width;x++)
+  for(int x=1;x<width-1;x++)
   {
     double currentSum = findLeastCostPathStitching(x, pathMatrix, pixmap);
     if(currentSum < leastSum)
