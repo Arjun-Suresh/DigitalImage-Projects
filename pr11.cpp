@@ -32,8 +32,6 @@
 
 #define MAXDEPTH 100
 
-#define XL 100
-#define YL 100
 #define ZL MAXDEPTH
 
 using namespace std;
@@ -52,7 +50,7 @@ class unitVector
   public:
     unitVector(double xVal, double yVal, double zVal)
     {
-      double length = pow((pow(x,2)+pow(y,2)+pow(z,2)),0.5);
+      double length = pow((pow(xVal,2)+pow(yVal,2)+pow(zVal,2)),0.5);
       x=(double)xVal/length; y=(double)yVal/length; z=(double)zVal/length;
     }
     double getXValue()
@@ -73,8 +71,11 @@ class unitVector
     }
 };
 
+void diffuseIlluminate(int x, int y);
+void generatePPMFile();
 unitVector** normalVector;
 double* zValues;
+int XL=100, YL=100;
 
 inline double mod(double x) 
 {
@@ -130,7 +131,17 @@ static void windowDisplay(void)
 static void processMouse(int button, int state, int x, int y)
 {
   if(state == GLUT_UP)
-  exit(0);               // Exit on mouse click.
+  {
+    generatePPMFile();
+    exit(0); 
+  }
+}
+
+static void movementMouse(int x, int y)
+{
+  XL=x;
+  YL=height-y;
+  glutPostRedisplay();
 }
 static void init(void)
 {
@@ -341,10 +352,15 @@ bool readPPMFile(char* filePath)
 //************************************************************************************************************
 void emboss(int x, int y, double& xGrad, double& yGrad)
 {
-  int iterator1 = ((y*width)+(x+1))*3;
-  int iterator2 = ((y*width)+(x-1))*3;
-  int iterator3 = (((y+1)*width)+x)*3;
-  int iterator4 = (((y-1)*width)+x)*3;
+  int iterator1, iterator2, iterator3, iterator4;
+  if(x == 0)
+    x+=width;
+  if(y == 0)
+    y+=height;
+  iterator1 = ((y*width)+((x+1)%width))*3;
+  iterator2 = ((y*width)+((x-1)%width))*3;
+  iterator3 = ((((y+1)%height)*width)+x)*3;
+  iterator4 = ((((y-1)%height)*width)+x)*3;
   double colorVal1 = (pixmapOrig[iterator1]+pixmapOrig[iterator1+1]+pixmapOrig[iterator1+2])/3;
   double colorVal2 = (pixmapOrig[iterator2]+pixmapOrig[iterator2+1]+pixmapOrig[iterator2+2])/3;
   double colorVal3 = (pixmapOrig[iterator3]+pixmapOrig[iterator3+1]+pixmapOrig[iterator3+2])/3;
@@ -355,18 +371,18 @@ void emboss(int x, int y, double& xGrad, double& yGrad)
 
 void fillNormalAndHeights()
 {
-  unitVector** normalVector = (unitVector **) malloc(sizeof(unitVector*)*width*height);
+  normalVector = (unitVector **) malloc(sizeof(unitVector*)*width*height);
   zValues = new double[width*height];
   for(int y=0;y<height;y++)
   {
     for(int x=0;x<width;x++)
     {
       int iterator = ((y*width)+x)*3;
-      double colorVal = (pixmapOrig[iterator]+pixmapOrig[iterator+1]+pixmapOrig[iterator+2])/3*255;
-      zValues[iterator]=colorVal * MAXDEPTH;
+      double colorVal = ((double)(pixmapOrig[iterator]+pixmapOrig[iterator+1]+pixmapOrig[iterator+2]))/(3*255);
+      zValues[(y*width)+x]=colorVal * MAXDEPTH;
       double xGrad, yGrad;
       emboss(x,y,xGrad,yGrad);
-      normalVector[iterator] = new unitVector(xGrad, yGrad, -1);
+      normalVector[(y*width)+x] = new unitVector(xGrad, yGrad, -1);
     }
   }      
 }
@@ -430,20 +446,15 @@ unsigned char* writePixelBufferToFileBuffer(unsigned char* fileBuffer, long int&
   return fileBuffer;
 }
 
-void generatePPMFile(int option)
+void generatePPMFile()
 {
   std::fstream ppmFile;
   char fileName[50];
+  int option=1;
   switch(option)
   {
     case 1: 
-      strcpy(fileName,"outputBilinearWarp.ppm");
-      break;
-    case 2: 
-      strcpy(fileName,"outputInverse.ppm");
-      break;
-    case 3:
-      strcpy(fileName,"outputSineWarp.ppm");
+      strcpy(fileName,"outputDiffuse.ppm");
       break;
   }
   ppmFile.open(fileName,std::fstream::out);
@@ -467,28 +478,21 @@ void diffuseIlluminate()
     for(int x=0;x<width;x++)
     {
       int iterator = ((y*width)+x)*3;
-      unitVector lightVector((double)(x-XL), (double)(y-YL), zValues[iterator]-ZL);
-      double cosTheta = normalVector[iterator]->dotProduct(lightVector);
-      int colorVal = ((1+cosTheta)/2)*255;
+      unitVector lightVector((double)(x-XL), (double)(y-YL), zValues[(y*width)+x]-ZL);  
+      double cosTheta = (normalVector[(y*width)+x])->dotProduct(lightVector); 
+      int colorVal;
+      if(cosTheta<=0)
+        colorVal=0;
+      else
+        colorVal=cosTheta*255;
       pixmapComputed[iterator]=colorVal;
       pixmapComputed[iterator+1]=colorVal;
       pixmapComputed[iterator+2]=colorVal;
     }
   }
+  windowDisplay();
 }
 
-void applyOperation(int option)
-{
-  switch(option)
-  {
-    case 1:
-    diffuseIlluminate();
-    break;
-    case 2:
-    //inverseWarp(0);
-    break;
-  }
-}
 
 
 // =============================================================================
@@ -503,14 +507,6 @@ int main(int argc, char *argv[])
   fillNormalAndHeights();
   pixmapComputed = new unsigned char[width * height * 3];
 
-  int option;
-  cout<<"Enter options:\n1. Diffuse Illumination\n2. Specular highlight\n";
-  cin>>option;
-
-  applyOperation(option);
-
-  generatePPMFile(option);
-
 
   glutInit(&argc, argv);
   glutInitWindowPosition(100, 100); // Where the window will display on-screen.
@@ -519,10 +515,10 @@ int main(int argc, char *argv[])
   glutCreateWindow("Homework Seven");
   init();
   glutReshapeFunc(windowResize);
-  glutDisplayFunc(windowDisplay);
+  glutDisplayFunc(diffuseIlluminate);
   glutMouseFunc(processMouse);
+  glutPassiveMotionFunc(movementMouse);
   glutMainLoop();
-
   return 0; //This line never gets reached. We use it because "main" is type int.
 }
      
