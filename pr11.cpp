@@ -30,7 +30,9 @@
 #define maximum(x, y, z) ((x) > (y)? ((x) > (z)? (x) : (z)) : ((y) > (z)? (y) : (z)))
 #define minimum(x, y, z) ((x) < (y)? ((x) < (z)? (x) : (z)) : ((y) < (z)? (y) : (z)))
 
-#define MAXDEPTH 100
+#define MAXDEPTH 300
+
+#define REFLECTMAX 0.866
 
 #define ZL MAXDEPTH
 
@@ -38,7 +40,7 @@ using namespace std;
 // =============================================================================
 // These variables will store the input ppm image's width, height, and color
 // =============================================================================
-int width, height, maxColorValue, magicNo;
+int width, height, maxColorValue, magicNo, option;
 unsigned char *pixmapOrig, *pixmapComputed;
 
 class unitVector
@@ -69,6 +71,7 @@ class unitVector
     {
       return (x*vector2.x + y*vector2.y + z*vector2.z);
     }
+      
 };
 
 void diffuseIlluminate(int x, int y);
@@ -450,11 +453,13 @@ void generatePPMFile()
 {
   std::fstream ppmFile;
   char fileName[50];
-  int option=1;
   switch(option)
   {
     case 1: 
       strcpy(fileName,"outputDiffuse.ppm");
+      break;
+    case 2:
+      strcpy(fileName,"outputReflection.ppm");
       break;
   }
   ppmFile.open(fileName,std::fstream::out);
@@ -490,10 +495,59 @@ void diffuseIlluminate()
       pixmapComputed[iterator+2]=colorVal;
     }
   }
-  windowDisplay();
 }
 
+void specularReflect()
+{
+  double XI = (double)width/2;
+  double YI = (double)height/2;
+  double ZI = MAXDEPTH;
+  for(int y=0;y<height;y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      int iterator = ((y*width)+x)*3;
+      unitVector lightVector((double)(x-XL), (double)(y-YL), zValues[(y*width)+x]-ZL); 
+      unitVector eyeVector((double)(x-XI), (double)(y-YI), zValues[(y*width)+x]-ZI);
+      double prod1 = ((normalVector[(y*width)+x])->dotProduct(eyeVector))*2;
+      unitVector reflection(((normalVector[(y*width)+x]->getXValue())*prod1)-eyeVector.getXValue(),((normalVector[(y*width)+x]->getYValue())*prod1)-eyeVector.getYValue(),((normalVector[(y*width)+x]->getZValue())*prod1)-eyeVector.getXValue());
+      double cosTheta = reflection.dotProduct(lightVector);
+      int colorVal1, colorVal2, colorVal;
+      if(cosTheta>=REFLECTMAX)
+        colorVal1=cosTheta*255;
+      else
+        colorVal1=0;
+      double cosTheta1 = (normalVector[(y*width)+x])->dotProduct(lightVector); 
+      if(cosTheta1<=0)
+        colorVal2=0;
+      else
+        colorVal2=cosTheta1*255;
+      
+      colorVal=colorVal1+colorVal2;
+      if(colorVal>255)
+        colorVal=255;
+      //colorVal=colorVal1;
+      pixmapComputed[iterator]=colorVal;
+      pixmapComputed[iterator+1]=colorVal;
+      pixmapComputed[iterator+2]=colorVal;
+    }
+  }
+}
 
+void applyOperation()
+{
+  switch(option)
+  {
+    case 1:
+      diffuseIlluminate();      
+      windowDisplay();
+      break;
+    case 2:
+      specularReflect();
+      windowDisplay();
+      break;
+  }
+}
 
 // =============================================================================
 // main() Program Entry
@@ -506,8 +560,9 @@ int main(int argc, char *argv[])
   readPPMFile(inputPPMFile);
   fillNormalAndHeights();
   pixmapComputed = new unsigned char[width * height * 3];
-
-
+  cout<<"Enter:\n1. Diffuse illumination\n2. Diffuse illumination + Specular reflection\n";
+  cin>>option;
+  
   glutInit(&argc, argv);
   glutInitWindowPosition(100, 100); // Where the window will display on-screen.
   glutInitWindowSize(width, height);
@@ -515,7 +570,7 @@ int main(int argc, char *argv[])
   glutCreateWindow("Homework Seven");
   init();
   glutReshapeFunc(windowResize);
-  glutDisplayFunc(diffuseIlluminate);
+  glutDisplayFunc(applyOperation);
   glutMouseFunc(processMouse);
   glutPassiveMotionFunc(movementMouse);
   glutMainLoop();
