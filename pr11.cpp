@@ -30,7 +30,7 @@
 #define maximum(x, y, z) ((x) > (y)? ((x) > (z)? (x) : (z)) : ((y) > (z)? (y) : (z)))
 #define minimum(x, y, z) ((x) < (y)? ((x) < (z)? (x) : (z)) : ((y) < (z)? (y) : (z)))
 
-#define MAXDEPTH 300
+#define MAXDEPTH 100
 
 #define REFLECTMAX 0.866
 
@@ -355,15 +355,15 @@ bool readPPMFile(char* filePath)
 //************************************************************************************************************
 void emboss(int x, int y, double& xGrad, double& yGrad)
 {
-  int iterator1, iterator2, iterator3, iterator4;
+  long int iterator1, iterator2, iterator3, iterator4;
   if(x == 0)
     x+=width;
   if(y == 0)
     y+=height;
-  iterator1 = ((y*width)+((x+1)%width))*3;
-  iterator2 = ((y*width)+((x-1)%width))*3;
-  iterator3 = ((((y+1)%height)*width)+x)*3;
-  iterator4 = ((((y-1)%height)*width)+x)*3;
+  iterator1 = (((y%height)*width)+((x+1)%width))*3;
+  iterator2 = (((y%height)*width)+((x-1)%width))*3;
+  iterator3 = ((((y+1)%height)*width)+(x%width))*3;
+  iterator4 = ((((y-1)%height)*width)+(x%width))*3;
   double colorVal1 = (pixmapOrig[iterator1]+pixmapOrig[iterator1+1]+pixmapOrig[iterator1+2])/3;
   double colorVal2 = (pixmapOrig[iterator2]+pixmapOrig[iterator2+1]+pixmapOrig[iterator2+2])/3;
   double colorVal3 = (pixmapOrig[iterator3]+pixmapOrig[iterator3+1]+pixmapOrig[iterator3+2])/3;
@@ -382,7 +382,7 @@ void fillNormalAndHeights()
     {
       int iterator = ((y*width)+x)*3;
       double colorVal = ((double)(pixmapOrig[iterator]+pixmapOrig[iterator+1]+pixmapOrig[iterator+2]))/(3*255);
-      zValues[(y*width)+x]=colorVal * MAXDEPTH;
+      zValues[(y*width)+x]=colorVal * (MAXDEPTH/2);
       double xGrad, yGrad;
       emboss(x,y,xGrad,yGrad);
       normalVector[(y*width)+x] = new unitVector(xGrad, yGrad, -1);
