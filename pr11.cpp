@@ -30,9 +30,9 @@
 #define maximum(x, y, z) ((x) > (y)? ((x) > (z)? (x) : (z)) : ((y) > (z)? (y) : (z)))
 #define minimum(x, y, z) ((x) < (y)? ((x) < (z)? (x) : (z)) : ((y) < (z)? (y) : (z)))
 
-#define MAXDEPTH 100
+#define MAXDEPTH 500
 
-#define REFLECTMAX 0.866
+#define REFLECTMAX 0.9659
 
 #define ZL MAXDEPTH
 
