@@ -7,13 +7,8 @@
 
 CC		= g++
 LDFLAGS 	= -lglut -lGL -lm
-<<<<<<< HEAD
 PROJECT		= pr09
 FILES		= pr09.cpp
-=======
-PROJECT		= pr08
-FILES		= pr08.cpp
->>>>>>> compositing/master
 
 ${PROJECT}:${FILES}
 	${CC} ${CFLAGS} -o ${PROJECT} ${FILES} ${LDFLAGS}
